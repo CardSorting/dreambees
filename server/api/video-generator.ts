@@ -1,8 +1,7 @@
-import { defineEventHandler, readBody, getHeader } from 'h3'
+import { defineEventHandler, readBody } from 'h3'
 import { startVideoGeneration } from '../services/video-processor'
 import { ERROR_MESSAGES, type VideoGenerationError } from '../../utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
-import { verifyAuthToken } from '../utils/firebase-admin'
 
 if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Video generator API can only be used on the server side')
@@ -45,28 +44,15 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Get and verify auth token
-    const authHeader = getHeader(event, 'authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Get user ID from auth context (set by middleware)
+    const userId = event.context.auth?.uid
+    if (!userId) {
       return {
         success: false,
         ...ERROR_MESSAGES.SERVER_ERROR,
         message: 'Unauthorized'
       }
     }
-
-    const token = authHeader.split('Bearer ')[1]
-    const authResult = await verifyAuthToken(token)
-    
-    if (!authResult.success) {
-      return {
-        success: false,
-        ...ERROR_MESSAGES.SERVER_ERROR,
-        message: 'Unauthorized'
-      }
-    }
-
-    const userId = authResult.uid
 
     // Remove data URL prefix if present
     const imageData = body.imageData.replace(/^data:image\/\w+;base64,/, '')
@@ -84,10 +70,10 @@ export default defineEventHandler(async (event) => {
     // Generate unique job ID
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    // Associate job with user
+    // Associate job with user using Redis set
     try {
       const userJobsKey = `user_jobs:${userId}`
-      await redis.sadd(userJobsKey, jobId)
+      await redis.set(userJobsKey, JSON.stringify([jobId]))
     } catch (error) {
       console.error('Failed to associate job with user:', error);
       return {
@@ -101,7 +87,9 @@ export default defineEventHandler(async (event) => {
     if (body.isRetry && body.previousJobId) {
       try {
         const userJobsKey = `user_jobs:${userId}`
-        await redis.srem(userJobsKey, body.previousJobId)
+        const currentJobs = JSON.parse(await redis.get<string>(userJobsKey) || '[]')
+        const updatedJobs = currentJobs.filter((id: string) => id !== body.previousJobId)
+        await redis.set(userJobsKey, JSON.stringify(updatedJobs))
       } catch (error) {
         console.error('Failed to cleanup previous job:', error);
         // Continue anyway as this is not critical

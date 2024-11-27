@@ -1,8 +1,7 @@
-import { defineEventHandler, getHeader, H3Event } from 'h3'
+import { defineEventHandler, H3Event } from 'h3'
 import { getJobStatus } from '../../utils/job-status'
 import { ERROR_MESSAGES } from '../../../utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
-import { verifyAuthToken } from '../../utils/firebase-admin'
 
 if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Video status completed API can only be used on the server side')
@@ -15,32 +14,20 @@ export default defineEventHandler(async (event: H3Event) => {
       token: process.env.REDIS_TOKEN as string,
     })
 
-    // Get and verify auth token
-    const authHeader = getHeader(event, 'authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Get user ID from auth context (set by middleware)
+    const userId = event.context.auth?.uid
+    if (!userId) {
       return {
         success: false,
         ...ERROR_MESSAGES.SERVER_ERROR,
         message: 'Unauthorized'
       }
     }
-
-    const token = authHeader.split('Bearer ')[1]
-    const authResult = await verifyAuthToken(token)
-    
-    if (!authResult.success) {
-      return {
-        success: false,
-        ...ERROR_MESSAGES.SERVER_ERROR,
-        message: 'Unauthorized'
-      }
-    }
-
-    const userId = authResult.uid
 
     // Get user's job IDs
     const userJobsKey = `user_jobs:${userId}`
-    const userJobIds = await redis.smembers(userJobsKey)
+    const jobsStr = await redis.get<string>(userJobsKey)
+    const userJobIds = jobsStr ? JSON.parse(jobsStr) : []
     const videos = []
 
     // Get status for each job
