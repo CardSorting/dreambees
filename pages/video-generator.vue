@@ -23,7 +23,6 @@ interface VideoGenerationResponse {
 }
 
 const authStore = useAuthStore()
-const { auth } = useFirebase()
 const isLoading = ref(true)
 
 // Ensure auth is initialized before rendering content
@@ -135,18 +134,10 @@ const generateVideo = async () => {
     
     videoManager.updateProgress('UPLOAD', STATUS_MESSAGES.UPLOADING)
 
-    // Ensure we have a valid auth token
-    const token = await auth.currentUser?.getIdToken(true)
-    if (!token) {
-      throw new Error('Authentication required. Please try logging in again.')
-    }
-
-    // Send to API
+    // Send to API with session cookies
     const response = await $fetch<VideoGenerationResponse>('/api/video-generator', {
       method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${token}`
-      },
+      credentials: 'include', // Include session cookies
       body: { 
         imageData,
         previousJobId: state.currentJobId.value 
