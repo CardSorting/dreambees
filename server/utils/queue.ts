@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis'
-import { JobStatus, type JobStatusType, type JobStatusUpdate, type QueueMessage } from './types'
+import { JobStatus, type JobStatusType, type JobStatusUpdate } from '@/types/job'
+import type { QueueMessage } from './types'
 
 // Re-export QueueMessage type
 export type { QueueMessage } from './types'

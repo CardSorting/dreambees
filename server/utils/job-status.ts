@@ -1,7 +1,7 @@
 import { getMediaConvertJobStatus, MediaConvertStatus } from './mediaconvert'
 import { updateJobStatus as updateQueueJobStatus } from './queue'
 import { Redis } from '@upstash/redis'
-import { JobStatus, type JobStatusType, type JobStatusUpdate } from '../../types/job'
+import { JobStatus, type JobStatusType, type JobStatusUpdate } from '@/types/job'
 
 // Helper function to get Redis client
 function getRedisClient() {
