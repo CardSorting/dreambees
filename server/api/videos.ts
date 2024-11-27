@@ -1,14 +1,17 @@
 import { Redis } from '@upstash/redis'
+import { defineEventHandler, getHeader, createError } from 'h3'
 import type { JobStatus } from '../utils/types'
-import { verifyAuthToken } from '~/server/utils/firebase-admin'
-import { useRuntimeConfig } from '#imports'
+import { verifyAuthToken } from '../utils/firebase-admin'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Videos API can only be used on the server side')
+}
 
 export default defineEventHandler(async (event) => {
   try {
-    const config = useRuntimeConfig()
     const redis = new Redis({
-      url: config.redisUrl,
-      token: config.redisToken,
+      url: process.env.REDIS_URL as string,
+      token: process.env.REDIS_TOKEN as string,
     })
 
     // Get and verify auth token
