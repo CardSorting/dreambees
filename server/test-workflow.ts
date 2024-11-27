@@ -6,6 +6,10 @@ import { startVideoGeneration } from './services/video-processor'
 import { consumeQueue, QUEUES } from './utils/queue'
 import type { QueueMessage } from './utils/types'
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Test workflow can only be run on the server side')
+}
+
 // Load environment variables
 dotenv.config()
 
