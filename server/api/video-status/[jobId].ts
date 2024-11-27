@@ -2,19 +2,9 @@ import { getJobStatus } from '~/server/utils/job-status'
 import { ERROR_MESSAGES, STATUS_MESSAGES } from '~/utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
 import { verifyAuthToken } from '~/server/utils/firebase-admin'
+import { useRuntimeConfig } from '#imports'
 
-// Initialize Redis with error handling
-let redis: Redis | null = null;
-try {
-  redis = new Redis({
-    url: process.env.REDIS_URL!,
-    token: process.env.REDIS_TOKEN!,
-  });
-} catch (error) {
-  console.error('Failed to initialize Redis:', error);
-}
-
-function validateVideoUrl(url: string | undefined): string | undefined {
+function validateVideoUrl(url: string | undefined, cloudFrontDomain: string): string | undefined {
   if (!url) return undefined;
   
   try {
@@ -34,12 +24,12 @@ function validateVideoUrl(url: string | undefined): string | undefined {
     }
     
     // Ensure it has the correct domain
-    if (!process.env.AWS_CLOUDFRONT_DOMAIN) {
-      console.error('AWS_CLOUDFRONT_DOMAIN is not configured');
+    if (!cloudFrontDomain) {
+      console.error('CloudFront domain is not configured');
       return undefined;
     }
     
-    if (!url.includes(process.env.AWS_CLOUDFRONT_DOMAIN)) {
+    if (!url.includes(cloudFrontDomain)) {
       console.error('Video URL does not match CloudFront domain:', url);
       return undefined;
     }
@@ -53,9 +43,17 @@ function validateVideoUrl(url: string | undefined): string | undefined {
 
 export default defineEventHandler(async (event) => {
   try {
-    // Verify Redis connection
-    if (!redis) {
-      console.error('Redis client not initialized');
+    const config = useRuntimeConfig()
+    
+    // Initialize Redis
+    let redis: Redis;
+    try {
+      redis = new Redis({
+        url: config.redisUrl,
+        token: config.redisToken,
+      });
+    } catch (error) {
+      console.error('Failed to initialize Redis:', error);
       return {
         success: false,
         status: 'failed',
@@ -64,9 +62,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Verify required environment variables
-    if (!process.env.REDIS_URL || !process.env.REDIS_TOKEN || !process.env.AWS_CLOUDFRONT_DOMAIN) {
-      console.error('Missing required environment variables');
+    // Verify required configuration
+    if (!config.redisUrl || !config.redisToken || !config.awsCloudFrontDomain) {
+      console.error('Missing required configuration');
       return {
         success: false,
         status: 'failed',
@@ -145,7 +143,7 @@ export default defineEventHandler(async (event) => {
     // Map internal status to user-friendly messages
     switch (status.status) {
       case 'completed': {
-        const validatedUrl = validateVideoUrl(status.videoUrl);
+        const validatedUrl = validateVideoUrl(status.videoUrl, config.awsCloudFrontDomain);
         if (!validatedUrl) {
           return {
             success: false,

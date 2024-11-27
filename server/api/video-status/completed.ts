@@ -2,14 +2,16 @@ import { getJobStatus } from '~/server/utils/job-status'
 import { ERROR_MESSAGES } from '~/utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
 import { verifyAuthToken } from '~/server/utils/firebase-admin'
-
-const redis = new Redis({
-  url: process.env.REDIS_URL!,
-  token: process.env.REDIS_TOKEN!,
-})
+import { useRuntimeConfig } from '#imports'
 
 export default defineEventHandler(async (event) => {
   try {
+    const config = useRuntimeConfig()
+    const redis = new Redis({
+      url: config.redisUrl,
+      token: config.redisToken,
+    })
+
     // Get and verify auth token
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader?.startsWith('Bearer ')) {

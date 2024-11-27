@@ -2,23 +2,21 @@ import { startVideoGeneration } from '../services/video-processor'
 import { ERROR_MESSAGES, type VideoGenerationError } from '~/utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
 import { verifyAuthToken } from '~/server/utils/firebase-admin'
-
-// Initialize Redis with error handling
-let redis: Redis | null = null;
-try {
-  redis = new Redis({
-    url: process.env.REDIS_URL!,
-    token: process.env.REDIS_TOKEN!,
-  });
-} catch (error) {
-  console.error('Failed to initialize Redis:', error);
-}
+import { useRuntimeConfig } from '#imports'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Verify Redis connection
-    if (!redis) {
-      console.error('Redis client not initialized');
+    const config = useRuntimeConfig()
+    
+    // Initialize Redis
+    let redis: Redis;
+    try {
+      redis = new Redis({
+        url: config.redisUrl,
+        token: config.redisToken,
+      });
+    } catch (error) {
+      console.error('Failed to initialize Redis:', error);
       return {
         success: false,
         ...ERROR_MESSAGES.SERVER_ERROR,
@@ -26,9 +24,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Verify required environment variables
-    if (!process.env.REDIS_URL || !process.env.REDIS_TOKEN) {
-      console.error('Missing required environment variables');
+    // Verify required configuration
+    if (!config.redisUrl || !config.redisToken) {
+      console.error('Missing required configuration');
       return {
         success: false,
         ...ERROR_MESSAGES.SERVER_ERROR,
