@@ -3,6 +3,10 @@ import { join } from 'path'
 import { readFileSync } from 'fs'
 import { createPublicKey, createVerify } from 'crypto'
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Firebase Admin can only be used on the server side')
+}
+
 const FIREBASE_CERT_PATH = join(process.cwd(), 'credentials', 'firebase-service-account.json')
 
 // Initialize Firebase Admin as a singleton
