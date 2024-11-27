@@ -2,17 +2,26 @@ import { getMediaConvertJobStatus, MediaConvertStatus } from './mediaconvert'
 import { updateJobStatus as updateQueueJobStatus } from './queue'
 import { Redis } from '@upstash/redis'
 import { JobStatus, type JobStatusType, type JobStatusUpdate } from './types'
+import { useRuntimeConfig } from '#imports'
 
-// Initialize Redis client
-const redis = new Redis({
-  url: process.env.REDIS_URL!,
-  token: process.env.REDIS_TOKEN!,
-})
+// Helper function to get Redis client
+function getRedisClient() {
+  // Ensure we're on the server side
+  if (process.server) {
+    const config = useRuntimeConfig()
+    return new Redis({
+      url: config.redisUrl,
+      token: config.redisToken,
+    })
+  }
+  throw new Error('Redis operations can only be performed on the server side')
+}
 
 const JOB_STATUS_PREFIX = 'job_status:'
 
 export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
   try {
+    const redis = getRedisClient()
     // Get current status from Redis
     const statusKey = `${JOB_STATUS_PREFIX}${jobId}`
     const currentStatus: JobStatus | null = await redis.get(statusKey)
@@ -102,6 +111,7 @@ export async function updateJobProgress(
   message: string,
   mediaConvertJobId?: string
 ): Promise<void> {
+  const redis = getRedisClient()
   const statusKey = `${JOB_STATUS_PREFIX}${jobId}`
   
   try {
@@ -140,6 +150,7 @@ export async function markJobFailed(
   jobId: string, 
   error: string
 ): Promise<void> {
+  const redis = getRedisClient()
   const statusKey = `${JOB_STATUS_PREFIX}${jobId}`
   
   try {
@@ -173,6 +184,7 @@ export async function markJobCompleted(
   jobId: string, 
   videoUrl: string
 ): Promise<void> {
+  const redis = getRedisClient()
   const statusKey = `${JOB_STATUS_PREFIX}${jobId}`
   
   try {
