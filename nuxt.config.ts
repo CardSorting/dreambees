@@ -44,9 +44,18 @@ export default defineNuxtConfig({
   },
   // Configure nitro server
   nitro: {
-    // Enable server-side middleware
+    // Enable server-side middleware with proper CORS settings
     routeRules: {
-      '/api/**': { cors: true }
+      '/api/**': { 
+        cors: {
+          origin: process.env.NODE_ENV === 'development' 
+            ? 'http://localhost:3000'
+            : 'https://dreambees.ai',
+          credentials: true,
+          methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+          allowHeaders: ['Content-Type', 'Cookie']
+        }
+      }
     }
   },
   // Disable SSR since we're using Firebase auth
