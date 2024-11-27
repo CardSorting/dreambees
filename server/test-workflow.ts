@@ -3,7 +3,8 @@ import { readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { startVideoGeneration } from './services/video-processor'
-import { consumeQueue, QUEUES, type QueueMessage } from './utils/queue'
+import { consumeQueue, QUEUES } from './utils/queue'
+import type { QueueMessage } from './utils/types'
 
 // Load environment variables
 dotenv.config()
@@ -12,17 +13,28 @@ dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+interface StatusUpdate {
+  type: 'STATUS_UPDATE';
+  status: string;
+  progress?: number;
+  message?: string;
+  error?: string;
+}
+
 async function testWorkflow() {
   try {
     console.log('Starting workflow test...')
 
     // 1. Set up status monitoring
     console.log('Setting up status monitoring...')
-    consumeQueue('VIDEO_STATUS', (message: QueueMessage) => {
-      if (message.type === 'STATUS_UPDATE') {
+    consumeQueue<StatusUpdate>('VIDEO_STATUS', (message: QueueMessage<StatusUpdate>) => {
+      if (message.data.type === 'STATUS_UPDATE') {
         console.log('\nStatus Update:', {
           jobId: message.jobId,
-          ...message.data
+          status: message.data.status,
+          progress: message.data.progress,
+          message: message.data.message,
+          error: message.data.error
         })
       }
       return Promise.resolve()

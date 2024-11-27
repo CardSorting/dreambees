@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted, onMounted } from 'vue'
 import type { VideoGenerationState, VideoGenerationError } from '~/utils/video-generator-utils'
 import { 
   VideoGenerationManager,
@@ -11,6 +11,7 @@ import {
 } from '~/utils/video-generator-utils'
 import { useAuthStore } from '~/stores/auth'
 import { useJobStatus } from '~/composables/useJobStatus'
+import { useFirebase } from '~/composables/useFirebase'
 
 // API Response Types
 interface VideoGenerationResponse {
@@ -22,6 +23,20 @@ interface VideoGenerationResponse {
 }
 
 const authStore = useAuthStore()
+const { auth } = useFirebase()
+const isLoading = ref(true)
+
+// Ensure auth is initialized before rendering content
+onMounted(async () => {
+  try {
+    await authStore.init()
+    if (!authStore.isAuthenticated) {
+      return navigateTo('/login')
+    }
+  } finally {
+    isLoading.value = false
+  }
+})
 
 // State management
 const state: VideoGenerationState = {
@@ -112,11 +127,6 @@ const generateVideo = async () => {
   if (!selectedImage.value) return
   
   try {
-    // Check auth state before proceeding
-    if (!authStore.isAuthenticated) {
-      throw new Error('Not authenticated')
-    }
-
     videoManager.initializeGeneration()
     videoLoadError.value = false
     
@@ -125,10 +135,10 @@ const generateVideo = async () => {
     
     videoManager.updateProgress('UPLOAD', STATUS_MESSAGES.UPLOADING)
 
-    // Get auth token
-    const token = await authStore.currentUser?.getIdToken(true) // Force token refresh
+    // Ensure we have a valid auth token
+    const token = await auth.currentUser?.getIdToken(true)
     if (!token) {
-      throw new Error('Not authenticated')
+      throw new Error('Authentication required. Please try logging in again.')
     }
 
     // Send to API
@@ -154,10 +164,11 @@ const generateVideo = async () => {
     jobStatus.startPolling(response.jobId)
 
   } catch (e: any) {
-    videoManager.handleError(e)
-    if (e.message === 'Not authenticated') {
-      navigateTo('/login')
+    if (e.message.includes('Authentication required')) {
+      // Handle auth errors by redirecting to login
+      return navigateTo('/login')
     }
+    videoManager.handleError(e)
   }
 }
 
@@ -200,7 +211,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div v-if="isLoading" class="flex justify-center items-center min-h-screen">
+    <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+  </div>
+  
+  <div v-else class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-8">

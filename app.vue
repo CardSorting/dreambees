@@ -22,19 +22,12 @@ const initialized = ref(false)
 // Initialize auth state when the app starts
 onMounted(async () => {
   try {
-    console.log('Initializing app auth state...')
     await authStore.init()
-    console.log('App auth state initialized')
   } catch (error) {
     console.error('Failed to initialize auth:', error)
   } finally {
     initialized.value = true
   }
-})
-
-// Watch for auth state changes
-watch(() => authStore.isAuthenticated, (isAuthenticated) => {
-  console.log('Auth state changed in app.vue:', isAuthenticated ? 'authenticated' : 'not authenticated')
 })
 </script>
 

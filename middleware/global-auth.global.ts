@@ -1,6 +1,7 @@
+import { defineNuxtRouteMiddleware, navigateTo } from '#app'
 import { useAuthStore } from '~/stores/auth'
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: any) => {
   // Skip middleware on server-side
   if (process.server) return
   
@@ -10,47 +11,26 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const protectedRoutes = ['/dashboard', '/video-generator']
   
   try {
-    // Wait for auth initialization only if not already initialized
-    if (!authStore.initialized) {
-      await authStore.init()
-    }
-
-    // Double check initialization after waiting
-    if (!authStore.initialized) {
-      console.error('Auth failed to initialize')
-      if (protectedRoutes.includes(to.path)) {
-        return navigateTo('/login')
-      }
-      return
-    }
+    // Always wait for auth initialization to complete before proceeding
+    await authStore.init()
     
-    // If trying to access protected route without authentication
+    // After initialization, check authentication state
     if (protectedRoutes.includes(to.path) && !authStore.isAuthenticated) {
-      console.log('Not authenticated, redirecting to login')
-      return navigateTo('/login')
+      // Store the intended destination for redirect after login
+      return navigateTo(`/login?redirect=${encodeURIComponent(to.path)}`)
     }
     
     // If authenticated user tries to access login page
     if (to.path === '/login' && authStore.isAuthenticated) {
-      console.log('Already authenticated, redirecting to dashboard')
-      return navigateTo('/dashboard')
+      // Try to redirect to the intended destination, or fall back to home
+      return navigateTo(to.query.redirect?.toString() || '/')
     }
-
-    // Log only serializable auth state properties
-    const authStateLog = {
-      initialized: authStore.initialized,
-      isAuthenticated: authStore.isAuthenticated,
-      path: to.path,
-      userId: authStore.user?.uid || null,
-      email: authStore.user?.email || null
-    }
-    console.log('Auth state:', authStateLog)
 
   } catch (error) {
-    console.error('Auth middleware error:', error instanceof Error ? error.message : 'Unknown error')
-    // On error, redirect to login for safety
+    console.error('Auth middleware error:', error)
+    // On error, redirect to login for safety if trying to access protected route
     if (protectedRoutes.includes(to.path)) {
-      return navigateTo('/login')
+      return navigateTo(`/login?redirect=${encodeURIComponent(to.path)}`)
     }
   }
 })

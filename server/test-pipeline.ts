@@ -1,5 +1,6 @@
 import { startVideoGeneration } from './services/video-processor'
-import { getJobStatus, JobStatus } from './utils/job-status'
+import { getJobStatus } from './utils/job-status'
+import { JobStatus } from './utils/types'
 import { readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'

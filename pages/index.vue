@@ -89,28 +89,15 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const authStore = useAuthStore()
 
-// Initialize auth state
+// Initialize auth state if needed
 onMounted(async () => {
   if (!authStore.initialized) {
     await authStore.init()
-  }
-
-  // If authenticated, redirect to dashboard
-  if (authStore.isAuthenticated) {
-    console.log('Already authenticated, redirecting to dashboard')
-    navigateTo('/dashboard')
-  }
-})
-
-// Watch for auth state changes
-watch(() => authStore.isAuthenticated, (isAuthenticated) => {
-  if (isAuthenticated) {
-    console.log('Auth state changed to authenticated, redirecting to dashboard')
-    navigateTo('/dashboard')
   }
 })
 </script>

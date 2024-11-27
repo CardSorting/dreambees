@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { type FirebaseError } from 'firebase/app'
 
@@ -31,8 +31,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       }
     }
 
-    console.log('Initializing Firebase...')
-
     // Initialize Firebase
     const app = initializeApp(firebaseConfig)
     const auth = getAuth(app)
@@ -40,33 +38,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
 
     // Set persistence to LOCAL
     await setPersistence(auth, browserLocalPersistence)
-
-    // Add auth state change listener for debugging
-    const unsubscribe = onAuthStateChanged(auth, 
-      (user) => {
-        // Log only serializable user data
-        const userInfo = user ? {
-          email: user.email,
-          uid: user.uid,
-          emailVerified: user.emailVerified
-        } : null;
-        console.log('Firebase auth state changed:', userInfo ? `logged in as ${userInfo.email}` : 'logged out')
-      },
-      (error) => {
-        // Log only serializable error properties
-        console.error('Firebase auth error:', {
-          code: error instanceof Error ? (error as FirebaseError).code : 'unknown',
-          message: error.message
-        })
-      }
-    )
-
-    // Clean up listener on app unmount
-    nuxtApp.hook('app:beforeMount', () => {
-      unsubscribe()
-    })
-
-    console.log('Firebase initialized successfully')
 
     return {
       provide: {
@@ -78,12 +49,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       }
     }
   } catch (error) {
-    // Log only serializable error properties
+    // Log only essential error information
     const firebaseError = error as FirebaseError
-    console.error('Failed to initialize Firebase:', {
-      message: firebaseError.message,
-      ...(firebaseError.code && { code: firebaseError.code })
-    })
+    console.error('Firebase initialization error:', firebaseError.message)
     throw error
   }
 })

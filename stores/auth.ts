@@ -4,9 +4,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  type User,
-  setPersistence,
-  browserLocalPersistence
+  type User
 } from 'firebase/auth'
 import { type FirebaseError } from 'firebase/app'
 import { useFirebase } from '~/composables/useFirebase'
@@ -45,33 +43,29 @@ const getErrorMessage = (error: FirebaseError) => {
   }
 }
 
-interface SerializableUser {
+// Only expose necessary user data to the client
+interface PublicUser {
   uid: string;
   email: string | null;
-  emailVerified: boolean;
   displayName: string | null;
-  photoURL: string | null;
 }
 
-const createSerializableUser = (user: User | null): SerializableUser | null => {
+const createPublicUser = (user: User | null): PublicUser | null => {
   if (!user) return null;
   return {
     uid: user.uid,
     email: user.email,
-    emailVerified: user.emailVerified,
-    displayName: user.displayName,
-    photoURL: user.photoURL
+    displayName: user.displayName
   };
 };
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null as SerializableUser | null,
+    user: null as PublicUser | null,
     loading: false,
     error: null as string | null,
     initialized: false,
-    initializationPromise: null as Promise<User | null> | null,
-    authStateUnsubscribe: null as (() => void) | null
+    initializationPromise: null as Promise<User | null> | null
   }),
 
   getters: {
@@ -81,52 +75,34 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async init() {
-      // If already initialized, return current user
       if (this.initialized) {
         return this.user;
       }
 
-      // If initialization is in progress, return the existing promise
       if (this.initializationPromise) {
         return this.initializationPromise;
       }
-
-      console.log('Initializing auth store...')
       
       try {
         const { auth } = useFirebase()
-
-        // Set persistence to LOCAL
-        await setPersistence(auth, browserLocalPersistence)
         
-        // Create new initialization promise
         this.initializationPromise = new Promise((resolve) => {
-          // Clean up any existing listener
-          if (this.authStateUnsubscribe) {
-            this.authStateUnsubscribe()
-          }
-
-          // Set up new listener
-          this.authStateUnsubscribe = onAuthStateChanged(auth, (user) => {
-            console.log('Auth state changed:', user ? 'logged in' : 'logged out')
-            this.user = createSerializableUser(user)
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            this.user = createPublicUser(user)
             this.initialized = true
             this.initializationPromise = null
+            unsubscribe()
             resolve(user)
-          }, (error) => {
-            console.error('Auth state change error:', error)
+          }, () => {
             this.initialized = true
             this.initializationPromise = null
             resolve(null)
           })
         })
 
-        const user = await this.initializationPromise
-        console.log('Auth initialization complete:', user ? 'logged in' : 'logged out')
-        return user
+        return await this.initializationPromise
 
       } catch (error) {
-        console.error('Auth initialization error:', error)
         this.initialized = true
         this.initializationPromise = null
         throw error
@@ -140,7 +116,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
-        this.user = createSerializableUser(userCredential.user)
+        this.user = createPublicUser(userCredential.user)
         return this.user
       } catch (error: any) {
         this.error = getErrorMessage(error)
@@ -157,7 +133,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-        this.user = createSerializableUser(userCredential.user)
+        this.user = createPublicUser(userCredential.user)
         return this.user
       } catch (error: any) {
         this.error = getErrorMessage(error)
@@ -173,20 +149,13 @@ export const useAuthStore = defineStore('auth', {
         await signOut(auth)
         this.user = null
         this.initialized = false
-        this.initializationPromise = null
-        // Don't remove the auth state listener
       } catch (error: any) {
         this.error = 'Failed to sign out. Please try again.'
         throw error
       }
     },
 
-    // Cleanup method
     cleanup() {
-      if (this.authStateUnsubscribe) {
-        this.authStateUnsubscribe()
-        this.authStateUnsubscribe = null
-      }
       this.initialized = false
       this.initializationPromise = null
       this.user = null
