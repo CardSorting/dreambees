@@ -21,12 +21,13 @@ async function findNodeProcesses() {
   }
 }
 
-async function cleanNuxtCache() {
+async function cleanBuildCache() {
   try {
-    console.log('Cleaning Nuxt cache...');
-    const nuxtDirs = ['.nuxt', '.output', 'node_modules/.vite', 'node_modules/.cache'];
+    console.log('Cleaning build cache...');
+    // Only clean cache directories, not .nuxt which contains type definitions
+    const cacheDirs = ['.output', 'node_modules/.vite', 'node_modules/.cache'];
     
-    for (const dir of nuxtDirs) {
+    for (const dir of cacheDirs) {
       try {
         await rm(join(process.cwd(), dir), { recursive: true, force: true });
         console.log(`Cleaned ${dir}`);
@@ -37,7 +38,7 @@ async function cleanNuxtCache() {
       }
     }
   } catch (error) {
-    console.error('Error cleaning Nuxt cache:', error);
+    console.error('Error cleaning build cache:', error);
   }
 }
 
@@ -69,8 +70,8 @@ async function gracefulShutdown() {
   try {
     console.log('Starting shutdown...');
 
-    // Clean Nuxt cache first
-    await cleanNuxtCache();
+    // Clean build cache first
+    await cleanBuildCache();
 
     // Get initial process list
     let pids = await findNodeProcesses();
