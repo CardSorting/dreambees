@@ -1,3 +1,7 @@
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Subtitle processor can only be used on the server side')
+}
+
 interface SubtitleBlock {
   startTime: string;
   endTime: string;
