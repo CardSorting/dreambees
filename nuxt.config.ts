@@ -47,13 +47,14 @@ export default defineNuxtConfig({
     // Enable server-side middleware with proper CORS settings
     routeRules: {
       '/api/**': { 
-        cors: {
-          origin: process.env.NODE_ENV === 'development' 
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Origin': process.env.NODE_ENV === 'development' 
             ? 'http://localhost:3000'
             : 'https://dreambees.ai',
-          credentials: true,
-          methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-          allowHeaders: ['Content-Type', 'Cookie']
+          'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization'
         }
       }
     }
