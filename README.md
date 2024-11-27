@@ -10,7 +10,6 @@ A Nuxt.js application for AI-powered video generation, combining image processin
 - Firebase project
 - AWS account with MediaConvert access
 - Redis instance (Upstash)
-- RabbitMQ instance
 - OpenAI API access
 
 ### Installation
@@ -39,6 +38,84 @@ npm run setup:firebase
    - The credentials directory should be created
    - The service account file should be in place
    - The .gitignore file should include credentials/*.json
+
+### AWS Setup
+
+#### S3 and CloudFront Configuration
+1. Create an S3 bucket with the following directory structure:
+   - /images - For uploaded images
+   - /audio - For generated audio files
+   - /subtitles - For generated subtitle files
+   - /output - For final video output
+
+2. Create a CloudFront Origin Access Control (OAC):
+```json
+{
+    "Name": "video-generator-oac",
+    "Description": "OAC for video generator S3 bucket",
+    "SigningProtocol": "sigv4",
+    "SigningBehavior": "always",
+    "OriginAccessControlOriginType": "s3"
+}
+```
+
+3. Create a CloudFront distribution:
+   - Origin: Your S3 bucket
+   - Origin access: Use the created OAC
+   - Viewer protocol policy: Redirect HTTP to HTTPS
+   - Cache policy: 
+     - MinTTL: 3600 seconds
+     - DefaultTTL: 86400 seconds
+     - MaxTTL: 31536000 seconds
+   - Compress objects automatically: Yes
+   - Price class: Use all edge locations
+   - HTTP version: HTTP/2
+   - Enable IPv6: Yes
+
+4. Update your S3 bucket policy to allow CloudFront access:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+            },
+            "Action": "s3:GetObject",
+            "Resource": [
+                "arn:aws:s3:::your-bucket/images/*",
+                "arn:aws:s3:::your-bucket/audio/*",
+                "arn:aws:s3:::your-bucket/subtitles/*",
+                "arn:aws:s3:::your-bucket/output/*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "AWS:SourceArn": "arn:aws:cloudfront::your-account-id:distribution/your-distribution-id"
+                }
+            }
+        },
+        {
+            "Sid": "AllowMediaConvertRole",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "mediaconvert.amazonaws.com"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::your-bucket/images/*",
+                "arn:aws:s3:::your-bucket/audio/*",
+                "arn:aws:s3:::your-bucket/subtitles/*",
+                "arn:aws:s3:::your-bucket/output/*"
+            ]
+        }
+    ]
+}
+```
 
 ### Environment Variables
 1. Copy the example environment file:
@@ -76,11 +153,6 @@ REDIS_URL=your_redis_url
 REDIS_TOKEN=your_redis_token
 ```
 
-- RabbitMQ configuration
-```env
-RABBITMQ_URL=your_rabbitmq_url
-```
-
 Note: Firebase Admin credentials are handled through the service account key file in credentials/firebase-service-account.json
 
 ### Development
@@ -98,8 +170,6 @@ The project includes several test scripts:
 ```bash
 npm run create:test-user    # Create a test user in Firebase
 npm run test:auth          # Test authentication flow
-npm run test:queue         # Test queue processing
-npm run test:queue:all     # Test queue with worker
 ```
 
 ### Production
@@ -122,10 +192,9 @@ npm run start
 - Backend: Node.js with Firebase Admin SDK
 - Image Processing: Sharp
 - Video Processing: AWS MediaConvert
-- Queue System: RabbitMQ
 - Cache: Redis (Upstash)
 - AI Services: OpenAI for text generation
-- CDN: AWS CloudFront
+- Content Delivery: AWS CloudFront with Origin Access Control
 
 ### Video Generation Pipeline
 1. Image upload and processing with Sharp
@@ -133,16 +202,17 @@ npm run start
 3. Audio generation and processing
 4. Subtitle generation and synchronization
 5. Video composition with AWS MediaConvert
-6. Content delivery through CloudFront CDN
+6. Content delivery through CloudFront CDN with secure access
 
 ### System Components
 - Nuxt.js frontend application
 - Background worker for processing tasks
-- Queue-based job processing system
+- Redis-based job queue system
 - Distributed caching with Redis
 - Cloud storage with AWS S3
 - Video processing with MediaConvert
 - Real-time updates through Firebase
+- Secure content delivery through CloudFront
 
 ## Security
 - Protected API routes with Firebase Authentication
@@ -151,6 +221,8 @@ npm run start
 - AWS IAM role-based access
 - Redis token authentication
 - Firestore security rules
+- CloudFront Origin Access Control for S3
+- HTTPS-only content delivery
 
 ## Troubleshooting
 
@@ -161,15 +233,17 @@ If you encounter authentication issues:
 3. Ensure the service account has required permissions
 4. Verify Firebase configuration in the client
 
-### Worker Issues
-If the background worker isn't processing:
-1. Check RabbitMQ connection
-2. Verify Redis connectivity
-3. Ensure AWS credentials are valid
-4. Check worker logs for errors
+### AWS Services
+If you encounter AWS-related issues:
+1. Verify AWS credentials and region
+2. Check S3 bucket permissions
+3. Ensure CloudFront distribution is enabled
+4. Verify MediaConvert endpoint and role
+5. Check CloudFront OAC configuration
 
 ### Common Issues
 - "Failed to initialize Firebase": Check service account and environment variables
-- "Queue connection failed": Verify RabbitMQ URL and credentials
+- "S3 access denied": Verify bucket policy and CloudFront OAC setup
 - "Redis connection error": Check Redis URL and token
 - "AWS MediaConvert error": Verify AWS credentials and roles
+- "Content not accessible": Check CloudFront distribution status and OAC configuration
