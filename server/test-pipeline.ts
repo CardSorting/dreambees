@@ -6,6 +6,10 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { getMediaConvertJobStatus } from './utils/mediaconvert'
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Test pipeline can only be run on the server side')
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
