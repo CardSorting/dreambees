@@ -1,3 +1,23 @@
 {
-  "extends": "../.nuxt/tsconfig.server.json"
+  "extends": "../.nuxt/tsconfig.server.json",
+  "compilerOptions": {
+    "types": [
+      "node",
+      "amqplib",
+      "body-parser",
+      "caseless",
+      "connect",
+      "estree",
+      "express",
+      "express-serve-static-core",
+      "http-errors",
+      "http-proxy",
+      "qs",
+      "request",
+      "tough-cookie"
+    ]
+  },
+  "include": [
+    "./**/*"
+  ]
 }
