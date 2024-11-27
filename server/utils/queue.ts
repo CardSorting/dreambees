@@ -1,22 +1,20 @@
 import { Redis } from '@upstash/redis'
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import { useRuntimeConfig } from '#imports'
 import { JobStatus, type JobStatusType, type JobStatusUpdate, type QueueMessage } from './types'
 
-// Load environment variables
-dotenv.config({
-  path: join(dirname(fileURLToPath(import.meta.url)), '../../.env')
-})
+// Re-export QueueMessage type
+export type { QueueMessage } from './types'
 
 export const QUEUES = {
   VIDEO_GENERATION: 'video-generation',
   STATUS_UPDATES: 'status-updates'
 }
 
+// Initialize Redis with runtime config
+const config = useRuntimeConfig()
 const redis = new Redis({
-  url: process.env.REDIS_URL!,
-  token: process.env.REDIS_TOKEN!,
+  url: config.redisUrl,
+  token: config.redisToken,
 })
 
 export async function publishMessage(queue: string, message: any): Promise<void> {
@@ -139,32 +137,3 @@ export async function consumeQueue<T>(
 export async function cleanup(): Promise<void> {
   // No cleanup needed for Redis
 }
-
-// Helper function to handle connection errors
-process.on('exit', async () => {
-  await cleanup()
-})
-
-// Handle process termination
-process.on('SIGINT', async () => {
-  await cleanup()
-  process.exit(0)
-})
-
-process.on('SIGTERM', async () => {
-  await cleanup()
-  process.exit(0)
-})
-
-// Handle uncaught errors
-process.on('uncaughtException', async (error) => {
-  console.error('Uncaught exception:', error)
-  await cleanup()
-  process.exit(1)
-})
-
-process.on('unhandledRejection', async (error) => {
-  console.error('Unhandled rejection:', error)
-  await cleanup()
-  process.exit(1)
-})

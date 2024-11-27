@@ -16,6 +16,7 @@ import type {
   DocumentData
 } from 'firebase/firestore'
 import { useNuxtApp } from '#app'
+import { getAuth } from 'firebase/auth'
 
 interface Video {
   id: string
@@ -60,11 +61,19 @@ export const useVideosStore = defineStore('videos', {
 
       try {
         const authStore = useAuthStore()
-        if (!authStore.currentUser) {
+        if (!authStore.user?.uid) {
           throw new Error('Not authenticated')
         }
 
-        const token = await authStore.currentUser.getIdToken()
+        // Get the Firebase auth instance to get the token
+        const { $firebase } = useNuxtApp()
+        const auth = getAuth($firebase.app)
+        const token = await auth.currentUser?.getIdToken()
+        
+        if (!token) {
+          throw new Error('Failed to get authentication token')
+        }
+
         const data = await $fetch<{ success: boolean, videos?: Video[], message?: string }>('/api/video-status/completed', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -88,12 +97,12 @@ export const useVideosStore = defineStore('videos', {
     async fetchCollections() {
       try {
         const authStore = useAuthStore()
-        if (!authStore.currentUser) {
+        if (!authStore.user?.uid) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.currentUser.uid}/collections`)
+        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.user.uid}/collections`)
         const q = query(userCollectionsRef, orderBy('createdAt', 'desc'))
         const snapshot = await getDocs(q)
         
@@ -112,12 +121,12 @@ export const useVideosStore = defineStore('videos', {
     async createCollection(name: string) {
       try {
         const authStore = useAuthStore()
-        if (!authStore.currentUser) {
+        if (!authStore.user?.uid) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.currentUser.uid}/collections`)
+        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.user.uid}/collections`)
         
         const newCollectionData = {
           name,
@@ -142,13 +151,13 @@ export const useVideosStore = defineStore('videos', {
     async addVideoToCollection(videoId: string, collectionId: string) {
       try {
         const authStore = useAuthStore()
-        if (!authStore.currentUser) {
+        if (!authStore.user?.uid) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.currentUser.uid}/collections/${collectionId}`)
-        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.currentUser.uid}/videos/${videoId}`)
+        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/collections/${collectionId}`)
+        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/videos/${videoId}`)
 
         // Update video with collection ID
         await updateDoc(videoRef, {
@@ -178,13 +187,13 @@ export const useVideosStore = defineStore('videos', {
     async removeVideoFromCollection(videoId: string, collectionId: string) {
       try {
         const authStore = useAuthStore()
-        if (!authStore.currentUser) {
+        if (!authStore.user?.uid) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.currentUser.uid}/collections/${collectionId}`)
-        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.currentUser.uid}/videos/${videoId}`)
+        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/collections/${collectionId}`)
+        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/videos/${videoId}`)
 
         // Remove collection ID from video
         await updateDoc(videoRef, {

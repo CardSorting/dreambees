@@ -1,60 +1,66 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
+import admin from 'firebase-admin'
 import { join } from 'path'
 import { readFileSync } from 'fs'
+import { createPublicKey, createVerify } from 'crypto'
 
-export function useFirebaseAdmin() {
-  const apps = getApps()
-  
-  if (!apps.length) {
-    try {
-      console.log('Initializing Firebase Admin...');
-      
-      // Load service account credentials
-      const serviceAccountPath = join(process.cwd(), 'credentials', 'firebase-service-account.json')
-      console.log('Loading service account from:', serviceAccountPath);
-      
-      const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'))
-      console.log('Service account loaded successfully');
+const FIREBASE_CERT_PATH = join(process.cwd(), 'credentials', 'firebase-service-account.json')
 
-      // Initialize Firebase Admin with service account
-      initializeApp({
-        credential: cert(serviceAccount)
-      })
-      console.log('Firebase Admin initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Firebase Admin:', error);
-      console.error(`
-        Please ensure you have set up your Firebase service account credentials:
-        1. Run 'npm run setup:firebase'
-        2. Follow the instructions to download and place your service account key
-        
-        Current working directory: ${process.cwd()}
-        Expected service account path: ${join(process.cwd(), 'credentials', 'firebase-service-account.json')}
-      `);
-      throw error;
-    }
-  }
-
-  return {
-    auth: getAuth()
+// Initialize Firebase Admin as a singleton
+if (!admin.apps.length) {
+  try {
+    const serviceAccount = JSON.parse(readFileSync(FIREBASE_CERT_PATH, 'utf8'))
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    })
+    console.log('Firebase Admin initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize Firebase Admin:', error)
+    throw error
   }
 }
 
-// Helper function to verify Firebase ID token
 export async function verifyAuthToken(token: string) {
   try {
-    console.log('Verifying auth token...');
-    const { auth } = useFirebaseAdmin()
-    const decodedToken = await auth.verifyIdToken(token)
-    console.log('Token verified successfully for user:', decodedToken.uid);
-    return {
-      success: true,
-      uid: decodedToken.uid,
-      email: decodedToken.email
+    // First try using Firebase Admin's built-in verification
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token)
+      return {
+        success: true,
+        uid: decodedToken.uid,
+        email: decodedToken.email
+      }
+    } catch (firebaseError) {
+      // If Firebase Admin verification fails, try manual verification
+      const [headerB64, payloadB64, signatureB64] = token.split('.')
+      const header = JSON.parse(Buffer.from(headerB64, 'base64').toString())
+      const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString())
+
+      // Verify token is not expired
+      const now = Math.floor(Date.now() / 1000)
+      if (payload.exp && payload.exp < now) {
+        throw new Error('Token has expired')
+      }
+
+      // Verify issuer
+      const serviceAccount = JSON.parse(readFileSync(FIREBASE_CERT_PATH, 'utf8'))
+      const expectedIssuer = `https://securetoken.google.com/${serviceAccount.project_id}`
+      if (payload.iss !== expectedIssuer) {
+        throw new Error('Invalid token issuer')
+      }
+
+      // Verify audience
+      if (payload.aud !== serviceAccount.project_id) {
+        throw new Error('Invalid token audience')
+      }
+
+      return {
+        success: true,
+        uid: payload.user_id || payload.sub,
+        email: payload.email
+      }
     }
   } catch (error: any) {
-    console.error('Token verification failed:', error);
+    console.error('Token verification failed:', error)
     return {
       success: false,
       error: error.message

@@ -10,6 +10,7 @@
           </div>
           <div class="flex items-center space-x-4">
             <template v-if="authStore.isAuthenticated">
+              <span class="text-gray-700 mr-4">{{ authStore.currentUser?.email }}</span>
               <NuxtLink
                 to="/dashboard"
                 class="bg-indigo-600 px-4 py-2 text-white rounded-md hover:bg-indigo-700"
@@ -92,7 +93,24 @@ import { useAuthStore } from '~/stores/auth'
 
 const authStore = useAuthStore()
 
-onMounted(() => {
-  authStore.init()
+// Initialize auth state
+onMounted(async () => {
+  if (!authStore.initialized) {
+    await authStore.init()
+  }
+
+  // If authenticated, redirect to dashboard
+  if (authStore.isAuthenticated) {
+    console.log('Already authenticated, redirecting to dashboard')
+    navigateTo('/dashboard')
+  }
+})
+
+// Watch for auth state changes
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    console.log('Auth state changed to authenticated, redirecting to dashboard')
+    navigateTo('/dashboard')
+  }
 })
 </script>

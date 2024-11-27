@@ -2,7 +2,13 @@ import { ref, onUnmounted } from 'vue'
 import { getJobStatus } from '~/server/utils/job-status'
 import { JobStatus, type JobStatusType } from '~/server/utils/types'
 
-export function useJobStatus(jobId: string) {
+interface JobStatusCallbacks {
+  onComplete?: (videoUrl: string) => void;
+  onError?: (error: string) => void;
+  onProgress?: (progress: number, message: string) => void;
+}
+
+export function useJobStatus(callbacks?: JobStatusCallbacks) {
   const status = ref<JobStatusType>(JobStatus.PROCESSING)
   const message = ref<string>('Initializing...')
   const progress = ref<number>(0)
@@ -11,7 +17,7 @@ export function useJobStatus(jobId: string) {
   const isPolling = ref(false)
   let pollInterval: NodeJS.Timeout | null = null
 
-  async function poll() {
+  async function poll(jobId: string) {
     try {
       const jobStatus = await getJobStatus(jobId)
       if (!jobStatus) {
@@ -25,23 +31,35 @@ export function useJobStatus(jobId: string) {
       error.value = jobStatus.error
       videoUrl.value = jobStatus.videoUrl
 
+      // Handle callbacks
+      if (jobStatus.status === JobStatus.COMPLETED && jobStatus.videoUrl && callbacks?.onComplete) {
+        callbacks.onComplete(jobStatus.videoUrl)
+      } else if (jobStatus.status === JobStatus.FAILED && jobStatus.error && callbacks?.onError) {
+        callbacks.onError(jobStatus.error)
+      } else if (jobStatus.status === JobStatus.PROCESSING && callbacks?.onProgress) {
+        callbacks.onProgress(jobStatus.progress || 0, jobStatus.message || '')
+      }
+
       // Stop polling if job is complete or failed
       if (jobStatus.status === JobStatus.COMPLETED || jobStatus.status === JobStatus.FAILED) {
         stopPolling()
       }
     } catch (err) {
       console.error('Error polling job status:', err)
+      if (callbacks?.onError) {
+        callbacks.onError('Failed to check job status')
+      }
     }
   }
 
-  function startPolling(interval = 5000) {
+  function startPolling(jobId: string, interval = 5000) {
     if (isPolling.value) return
 
     isPolling.value = true
-    poll() // Initial poll
+    poll(jobId) // Initial poll
 
     // Set up interval
-    pollInterval = setInterval(poll, interval)
+    pollInterval = setInterval(() => poll(jobId), interval)
   }
 
   function stopPolling() {

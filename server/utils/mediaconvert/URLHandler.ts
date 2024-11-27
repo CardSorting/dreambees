@@ -2,21 +2,16 @@ import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { MediaConvertClient } from './MediaConvertClient'
 import { OutputPathResolver, type OutputLocation } from './OutputPathResolver'
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-
-// Load environment variables
-dotenv.config({
-  path: join(dirname(fileURLToPath(import.meta.url)), '../../../.env')
-})
+import { useRuntimeConfig } from '#imports'
 
 export class URLHandler {
   private static instance: URLHandler;
   private s3Client;
   private outputResolver;
+  private config;
 
   private constructor() {
+    this.config = useRuntimeConfig()
     this.s3Client = MediaConvertClient.getInstance().getS3Client();
     this.outputResolver = OutputPathResolver.getInstance();
   }
@@ -41,7 +36,7 @@ export class URLHandler {
     try {
       console.log('Generating signed URL for:', key);
       const command = new GetObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET!,
+        Bucket: this.config.awsS3Bucket,
         Key: key,
         ResponseContentDisposition: 'inline'
       });
@@ -57,7 +52,7 @@ export class URLHandler {
   }
 
   private getCloudFrontUrl(key: string): string {
-    const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN || 'd2kp8efsbrxae1.cloudfront.net';
+    const cloudFrontDomain = this.config.awsCloudFrontDomain;
     return `https://${cloudFrontDomain}/${key}`;
   }
 

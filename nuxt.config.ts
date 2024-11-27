@@ -8,6 +8,16 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Private server-side config
     awsCloudFrontDomain: 'd2kp8efsbrxae1.cloudfront.net',
+    awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    awsRegion: process.env.AWS_REGION,
+    awsS3Bucket: process.env.AWS_S3_BUCKET,
+    awsMediaConvertEndpoint: process.env.AWS_MEDIACONVERT_ENDPOINT,
+    awsMediaConvertRole: process.env.AWS_MEDIACONVERT_ROLE,
+    redisUrl: process.env.REDIS_URL,
+    redisToken: process.env.REDIS_TOKEN,
+    rabbitmqUrl: process.env.RABBITMQ_URL,
+    openaiApiKey: process.env.OPENAI_API_KEY,
     public: {
       firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
       firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -26,6 +36,33 @@ export default defineNuxtConfig({
       'autoprefixer': {},
       'postcss-import': {}
     }
+  },
+  // Configure app
+  app: {
+    // Enable page transitions
+    pageTransition: { name: 'page', mode: 'out-in' }
+  },
+  // Configure nitro server
+  nitro: {
+    // Enable server-side middleware
+    routeRules: {
+      '/api/**': { cors: true }
+    }
+  },
+  // Disable SSR since we're using Firebase auth
+  ssr: false,
+  // Configure build
+  build: {
+    transpile: ['firebase']
+  },
+  // Configure state serialization
+  vite: {
+    optimizeDeps: {
+      exclude: ['firebase']
+    }
+  },
+  pinia: {
+    autoImports: ['defineStore', 'storeToRefs']
   },
   compatibilityDate: '2024-11-26'
 })

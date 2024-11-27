@@ -1,54 +1,47 @@
-import { MediaConvertClient as AWSMediaConvertClient } from '@aws-sdk/client-mediaconvert'
-import { S3Client } from '@aws-sdk/client-s3'
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import { MediaConvert } from '@aws-sdk/client-mediaconvert'
+import { S3 } from '@aws-sdk/client-s3'
+import { useRuntimeConfig } from '#imports'
 
-// Load environment variables
-dotenv.config({
-  path: join(dirname(fileURLToPath(import.meta.url)), '../../../.env')
-})
-
-export class MediaConvertClient {
-  private static instance: MediaConvertClient
-  private mediaConvertClient: AWSMediaConvertClient
-  private s3Client: S3Client
+class MediaConvertClientSingleton {
+  private static instance: MediaConvertClientSingleton;
+  private mediaConvertClient: MediaConvert;
+  private s3Client: S3;
 
   private constructor() {
-    if (!process.env.AWS_MEDIACONVERT_ENDPOINT) {
-      throw new Error('AWS_MEDIACONVERT_ENDPOINT environment variable is required')
-    }
+    const config = useRuntimeConfig()
 
-    this.mediaConvertClient = new AWSMediaConvertClient({
-      region: process.env.AWS_REGION || 'us-east-1',
+    this.mediaConvertClient = new MediaConvert({
+      endpoint: config.awsMediaConvertEndpoint,
+      region: config.awsRegion,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
-      },
-      endpoint: process.env.AWS_MEDIACONVERT_ENDPOINT
-    })
-
-    this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+        accessKeyId: config.awsAccessKeyId,
+        secretAccessKey: config.awsSecretAccessKey
       }
-    })
+    });
+
+    this.s3Client = new S3({
+      region: config.awsRegion,
+      credentials: {
+        accessKeyId: config.awsAccessKeyId,
+        secretAccessKey: config.awsSecretAccessKey
+      }
+    });
   }
 
-  public static getInstance(): MediaConvertClient {
-    if (!MediaConvertClient.instance) {
-      MediaConvertClient.instance = new MediaConvertClient()
+  public static getInstance(): MediaConvertClientSingleton {
+    if (!MediaConvertClientSingleton.instance) {
+      MediaConvertClientSingleton.instance = new MediaConvertClientSingleton();
     }
-    return MediaConvertClient.instance
+    return MediaConvertClientSingleton.instance;
   }
 
-  public getMediaConvertClient(): AWSMediaConvertClient {
-    return this.mediaConvertClient
+  public getMediaConvertClient(): MediaConvert {
+    return this.mediaConvertClient;
   }
 
-  public getS3Client(): S3Client {
-    return this.s3Client
+  public getS3Client(): S3 {
+    return this.s3Client;
   }
 }
+
+export const MediaConvertClient = MediaConvertClientSingleton;

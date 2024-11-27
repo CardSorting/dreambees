@@ -1,4 +1,4 @@
-import { H3Event, createError } from 'h3'
+import { H3Event } from 'h3'
 import { verifyAuthToken } from '~/server/utils/firebase-admin'
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return createError({
+      throw createError({
         statusCode: 401,
         message: 'Missing or invalid authorization header'
       })
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const token = authHeader.split('Bearer ')[1]
     if (!token) {
-      return createError({
+      throw createError({
         statusCode: 401,
         message: 'No token provided'
       })
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event: H3Event) => {
     // Verify the token
     const result = await verifyAuthToken(token)
     if (!result.success) {
-      return createError({
+      throw createError({
         statusCode: 401,
         message: result.error || 'Invalid or expired token'
       })
@@ -40,14 +40,10 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
   } catch (error: any) {
-    console.error('Authentication error:', {
-      message: error.message,
-      stack: error.stack
-    })
-    
-    return createError({
+    console.error('Authentication error:', error.message);
+    throw createError({
       statusCode: 401,
-      message: 'Authentication failed'
+      message: error.message || 'Authentication failed'
     })
   }
 })

@@ -21,10 +21,6 @@ interface VideoGenerationResponse {
   retryable?: boolean;
 }
 
-definePageMeta({
-  middleware: ['auth']
-})
-
 const authStore = useAuthStore()
 
 // State management
@@ -46,17 +42,17 @@ const videoPlayer = ref<HTMLVideoElement | null>(null)
 
 // Job status polling
 const jobStatus = useJobStatus({
-  onComplete: (videoUrl) => {
+  onComplete: (videoUrl: string) => {
     videoManager.completeGeneration(videoUrl)
   },
-  onError: (error) => {
+  onError: (error: string) => {
     videoManager.handleError({
       code: 'GENERATION_FAILED',
       message: error,
       retryable: true
     })
   },
-  onProgress: (progress, message) => {
+  onProgress: (progress: number, message: string) => {
     videoManager.updateProgress(
       'PROCESSING',
       message,
@@ -116,6 +112,11 @@ const generateVideo = async () => {
   if (!selectedImage.value) return
   
   try {
+    // Check auth state before proceeding
+    if (!authStore.isAuthenticated) {
+      throw new Error('Not authenticated')
+    }
+
     videoManager.initializeGeneration()
     videoLoadError.value = false
     
@@ -125,7 +126,7 @@ const generateVideo = async () => {
     videoManager.updateProgress('UPLOAD', STATUS_MESSAGES.UPLOADING)
 
     // Get auth token
-    const token = await authStore.currentUser?.getIdToken()
+    const token = await authStore.currentUser?.getIdToken(true) // Force token refresh
     if (!token) {
       throw new Error('Not authenticated')
     }
@@ -154,6 +155,9 @@ const generateVideo = async () => {
 
   } catch (e: any) {
     videoManager.handleError(e)
+    if (e.message === 'Not authenticated') {
+      navigateTo('/login')
+    }
   }
 }
 

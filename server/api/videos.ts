@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis'
-import type { JobStatus } from '../utils/job-status'
+import type { JobStatus } from '../utils/types'
+import { verifyAuthToken } from '~/server/utils/firebase-admin'
 
 const redis = new Redis({
   url: process.env.REDIS_URL!,
@@ -8,7 +9,7 @@ const redis = new Redis({
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get auth token from header
+    // Get and verify auth token
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       throw createError({
@@ -17,16 +18,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Extract user ID from token
     const token = authHeader.split('Bearer ')[1]
-    const userId = event.context.auth?.uid
+    const authResult = await verifyAuthToken(token)
     
-    if (!userId) {
+    if (!authResult.success) {
       throw createError({
         statusCode: 401,
         message: 'Unauthorized'
       })
     }
+
+    const userId = authResult.uid
 
     // Get all job statuses for user
     const userJobsKey = `user_jobs:${userId}`

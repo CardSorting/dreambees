@@ -1,6 +1,7 @@
 import { getJobStatus } from '~/server/utils/job-status'
 import { ERROR_MESSAGES, STATUS_MESSAGES } from '~/utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
+import { verifyAuthToken } from '~/server/utils/firebase-admin'
 
 // Initialize Redis with error handling
 let redis: Redis | null = null;
@@ -84,7 +85,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Get user ID from auth token
+    // Get and verify auth token
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return {
@@ -94,7 +95,20 @@ export default defineEventHandler(async (event) => {
         message: 'Unauthorized'
       }
     }
-    const userId = authHeader.split('Bearer ')[1]
+
+    const token = authHeader.split('Bearer ')[1]
+    const authResult = await verifyAuthToken(token)
+    
+    if (!authResult.success) {
+      return {
+        success: false,
+        status: 'failed',
+        ...ERROR_MESSAGES.SERVER_ERROR,
+        message: 'Unauthorized'
+      }
+    }
+
+    const userId = authResult.uid
 
     // Verify job ownership
     try {

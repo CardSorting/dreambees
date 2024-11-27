@@ -6,20 +6,14 @@ import {
   type PutObjectCommandInput
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import { useRuntimeConfig } from '#imports'
 
-// Load environment variables
-dotenv.config({
-  path: join(dirname(fileURLToPath(import.meta.url)), '../../.env')
-})
-
+const config = useRuntimeConfig()
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+  region: config.awsRegion,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+    accessKeyId: config.awsAccessKeyId,
+    secretAccessKey: config.awsSecretAccessKey
   }
 })
 
@@ -45,7 +39,7 @@ export async function uploadToS3(
     }
 
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET,
+      Bucket: config.awsS3Bucket,
       Key: key,
       Body: uploadBody,
       ContentType: contentType,
@@ -65,7 +59,7 @@ export async function getFromS3(key: string): Promise<Buffer> {
   
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET,
+      Bucket: config.awsS3Bucket,
       Key: key
     })
 
@@ -92,7 +86,7 @@ export async function getSignedS3Url(key: string, expiresIn: number = 3600): Pro
   
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET,
+      Bucket: config.awsS3Bucket,
       Key: key
     })
 
@@ -107,8 +101,8 @@ export async function getSignedS3Url(key: string, expiresIn: number = 3600): Pro
 
 export function getS3Url(key: string): string {
   try {
-    // Default CloudFront domain from environment variable
-    const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN || 'd2kp8efsbrxae1.cloudfront.net'
+    // Use CloudFront domain from runtime config
+    const cloudFrontDomain = config.awsCloudFrontDomain
     
     if (!cloudFrontDomain) {
       console.error('CloudFront domain not configured')
@@ -125,7 +119,7 @@ export function getS3Url(key: string): string {
   } catch (error) {
     console.error('Failed to generate CloudFront URL:', error)
     // Fallback to direct S3 URL if CloudFront fails
-    return `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`
+    return `https://${config.awsS3Bucket}.s3.${config.awsRegion}.amazonaws.com/${key}`
   }
 }
 

@@ -1,22 +1,17 @@
 import OpenAI from 'openai'
 import { getSignedS3Url } from './s3'
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
 import { Redis } from '@upstash/redis'
+import { useRuntimeConfig } from '#imports'
 
-// Load environment variables
-dotenv.config({
-  path: join(dirname(fileURLToPath(import.meta.url)), '../../.env')
-})
+const config = useRuntimeConfig()
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: config.openaiApiKey
 })
 
 const redis = new Redis({
-  url: process.env.REDIS_URL!,
-  token: process.env.REDIS_TOKEN!,
+  url: config.redisUrl,
+  token: config.redisToken,
 })
 
 export interface ScriptGenerationResult {
