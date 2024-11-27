@@ -1,15 +1,18 @@
-import { getJobStatus } from '~/server/utils/job-status'
-import { ERROR_MESSAGES } from '~/utils/video-generator-utils'
+import { defineEventHandler, getHeader } from 'h3'
+import { getJobStatus } from '../../utils/job-status'
+import { ERROR_MESSAGES } from '../../../utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
-import { verifyAuthToken } from '~/server/utils/firebase-admin'
-import { useRuntimeConfig } from '#imports'
+import { verifyAuthToken } from '../../utils/firebase-admin'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Video status completed API can only be used on the server side')
+}
 
 export default defineEventHandler(async (event) => {
   try {
-    const config = useRuntimeConfig()
     const redis = new Redis({
-      url: config.redisUrl,
-      token: config.redisToken,
+      url: process.env.REDIS_URL as string,
+      token: process.env.REDIS_TOKEN as string,
     })
 
     // Get and verify auth token
