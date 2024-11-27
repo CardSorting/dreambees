@@ -25,6 +25,11 @@ if (!admin.apps.length) {
 
 export async function verifyAuthToken(token: string) {
   try {
+    // Validate token format
+    if (!token || typeof token !== 'string' || !token.includes('.')) {
+      throw new Error('Invalid token format')
+    }
+
     // First try using Firebase Admin's built-in verification
     try {
       const decodedToken = await admin.auth().verifyIdToken(token)
@@ -35,39 +40,64 @@ export async function verifyAuthToken(token: string) {
       }
     } catch (firebaseError) {
       // If Firebase Admin verification fails, try manual verification
-      const [headerB64, payloadB64, signatureB64] = token.split('.')
-      const header = JSON.parse(Buffer.from(headerB64, 'base64').toString())
-      const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString())
-
-      // Verify token is not expired
-      const now = Math.floor(Date.now() / 1000)
-      if (payload.exp && payload.exp < now) {
-        throw new Error('Token has expired')
+      const parts = token.split('.')
+      if (parts.length !== 3) {
+        throw new Error('Invalid token structure')
       }
 
-      // Verify issuer
-      const serviceAccount = JSON.parse(readFileSync(FIREBASE_CERT_PATH, 'utf8'))
-      const expectedIssuer = `https://securetoken.google.com/${serviceAccount.project_id}`
-      if (payload.iss !== expectedIssuer) {
-        throw new Error('Invalid token issuer')
-      }
+      const [headerB64, payloadB64, signatureB64] = parts
 
-      // Verify audience
-      if (payload.aud !== serviceAccount.project_id) {
-        throw new Error('Invalid token audience')
-      }
+      // Validate base64 format and decode
+      try {
+        // Add padding if necessary
+        const addPadding = (str: string) => {
+          const padding = str.length % 4
+          if (padding) {
+            return str + '='.repeat(4 - padding)
+          }
+          return str
+        }
 
-      return {
-        success: true,
-        uid: payload.user_id || payload.sub,
-        email: payload.email
+        // Replace URL-safe characters and add padding
+        const normalizeBase64 = (str: string) => {
+          return addPadding(str.replace(/-/g, '+').replace(/_/g, '/'))
+        }
+
+        const header = JSON.parse(Buffer.from(normalizeBase64(headerB64), 'base64').toString())
+        const payload = JSON.parse(Buffer.from(normalizeBase64(payloadB64), 'base64').toString())
+
+        // Verify token is not expired
+        const now = Math.floor(Date.now() / 1000)
+        if (payload.exp && payload.exp < now) {
+          throw new Error('Token has expired')
+        }
+
+        // Verify issuer
+        const serviceAccount = JSON.parse(readFileSync(FIREBASE_CERT_PATH, 'utf8'))
+        const expectedIssuer = `https://securetoken.google.com/${serviceAccount.project_id}`
+        if (payload.iss !== expectedIssuer) {
+          throw new Error('Invalid token issuer')
+        }
+
+        // Verify audience
+        if (payload.aud !== serviceAccount.project_id) {
+          throw new Error('Invalid token audience')
+        }
+
+        return {
+          success: true,
+          uid: payload.user_id || payload.sub,
+          email: payload.email
+        }
+      } catch (decodeError) {
+        throw new Error('Invalid token encoding')
       }
     }
   } catch (error: any) {
     console.error('Token verification failed:', error)
     return {
       success: false,
-      error: error.message
+      error: error.message || 'Token verification failed'
     }
   }
 }
