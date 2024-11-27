@@ -12,6 +12,10 @@ import {
 import { improveSubtitles, analyzeSyncPoints } from '../utils/subtitles'
 import { s3Paths } from '../utils/s3'
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Video processor can only be used on the server side')
+}
+
 interface VideoGenerationInput {
   jobId: string
   imageData: string // base64 encoded image
