@@ -5,8 +5,8 @@ import { JobStatus, type JobStatusType, type JobStatusUpdate } from '../../types
 
 // Helper function to get Redis client
 function getRedisClient() {
-  // Ensure we're on the server side
-  if (process.server) {
+  // In Node.js, process.release.name will be 'node'
+  if (typeof process !== 'undefined' && process.release?.name === 'node') {
     return new Redis({
       url: process.env.REDIS_URL as string,
       token: process.env.REDIS_TOKEN as string,
