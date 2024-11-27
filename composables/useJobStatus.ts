@@ -1,11 +1,19 @@
 import { ref, onUnmounted } from 'vue'
-import { getJobStatus } from '~/server/utils/job-status'
-import { JobStatus, type JobStatusType } from '~/server/utils/types'
+import { JobStatus, type JobStatusType } from '~/types/job'
 
 interface JobStatusCallbacks {
   onComplete?: (videoUrl: string) => void;
   onError?: (error: string) => void;
   onProgress?: (progress: number, message: string) => void;
+}
+
+interface JobStatusResponse {
+  success: boolean;
+  status: JobStatusType;
+  message?: string;
+  progress?: number;
+  error?: string;
+  videoUrl?: string;
 }
 
 export function useJobStatus(callbacks?: JobStatusCallbacks) {
@@ -19,29 +27,39 @@ export function useJobStatus(callbacks?: JobStatusCallbacks) {
 
   async function poll(jobId: string) {
     try {
-      const jobStatus = await getJobStatus(jobId)
-      if (!jobStatus) {
-        console.error('Error polling job status: Job not found')
-        return
+      // Use the API endpoint instead of direct server utility
+      const response = await fetch(`/api/video-status/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch job status')
       }
 
-      status.value = jobStatus.status
-      message.value = jobStatus.message || ''
-      progress.value = jobStatus.progress || 0
-      error.value = jobStatus.error
-      videoUrl.value = jobStatus.videoUrl
+      const data: JobStatusResponse = await response.json()
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to get job status')
+      }
+
+      status.value = data.status
+      message.value = data.message || ''
+      progress.value = data.progress || 0
+      error.value = data.error
+      videoUrl.value = data.videoUrl
 
       // Handle callbacks
-      if (jobStatus.status === JobStatus.COMPLETED && jobStatus.videoUrl && callbacks?.onComplete) {
-        callbacks.onComplete(jobStatus.videoUrl)
-      } else if (jobStatus.status === JobStatus.FAILED && jobStatus.error && callbacks?.onError) {
-        callbacks.onError(jobStatus.error)
-      } else if (jobStatus.status === JobStatus.PROCESSING && callbacks?.onProgress) {
-        callbacks.onProgress(jobStatus.progress || 0, jobStatus.message || '')
+      if (data.status === JobStatus.COMPLETED && data.videoUrl && callbacks?.onComplete) {
+        callbacks.onComplete(data.videoUrl)
+      } else if (data.status === JobStatus.FAILED && data.error && callbacks?.onError) {
+        callbacks.onError(data.error)
+      } else if (data.status === JobStatus.PROCESSING && callbacks?.onProgress) {
+        callbacks.onProgress(data.progress || 0, data.message || '')
       }
 
       // Stop polling if job is complete or failed
-      if (jobStatus.status === JobStatus.COMPLETED || jobStatus.status === JobStatus.FAILED) {
+      if (data.status === JobStatus.COMPLETED || data.status === JobStatus.FAILED) {
         stopPolling()
       }
     } catch (err) {
