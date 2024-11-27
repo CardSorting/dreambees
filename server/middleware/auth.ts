@@ -1,5 +1,9 @@
-import { H3Event } from 'h3'
-import { verifyAuthToken } from '~/server/utils/firebase-admin'
+import { H3Event, defineEventHandler, getHeader, createError } from 'h3'
+import { verifyAuthToken } from '../utils/firebase-admin'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Auth middleware can only be used on the server side')
+}
 
 export default defineEventHandler(async (event: H3Event) => {
   // Skip auth for non-API routes
