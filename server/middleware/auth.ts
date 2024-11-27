@@ -1,4 +1,4 @@
-import { H3Event, defineEventHandler, getHeader, createError } from 'h3'
+import { H3Event, defineEventHandler, createError } from 'h3'
 import { getAuth } from 'firebase-admin/auth'
 
 if (typeof process === 'undefined' || process.release?.name !== 'node') {
@@ -7,12 +7,11 @@ if (typeof process === 'undefined' || process.release?.name !== 'node') {
 
 // Public endpoints that don't require authentication
 const PUBLIC_ENDPOINTS = [
-  '/api/video-status/completed'
+  '/api/video-status/completed',
+  '/api/auth/session',
+  '/api/auth/logout'
 ];
 
-// Since routes are already protected by client-side auth,
-// we'll use a simplified server-side check that just ensures
-// requests are coming from our authenticated frontend
 export default defineEventHandler(async (event: H3Event) => {
   // Skip auth for non-API routes
   if (!event.path.startsWith('/api/')) {
@@ -36,14 +35,21 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    // Add basic context without token verification
-    // This is safe because:
-    // 1. Routes are already protected by client-side auth
-    // 2. Firebase session cookies are HTTP-only and secure
-    // 3. The cookie is automatically managed by Firebase client SDK
-    event.context.auth = {
-      uid: sessionCookie, // Use session cookie as uid since we're not verifying tokens
-      email: undefined // Email is optional in the auth context type
+    try {
+      // Verify session cookie
+      const decodedClaims = await getAuth().verifySessionCookie(sessionCookie, true)
+      
+      // Add user info to event context
+      event.context.auth = {
+        uid: decodedClaims.uid,
+        email: decodedClaims.email
+      }
+    } catch (error) {
+      console.error('Session verification failed:', error)
+      throw createError({
+        statusCode: 401,
+        message: 'Invalid session'
+      })
     }
 
   } catch (error: any) {

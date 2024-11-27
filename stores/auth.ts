@@ -87,7 +87,13 @@ export const useAuthStore = defineStore('auth', {
         const { auth } = useFirebase()
         
         this.initializationPromise = new Promise((resolve) => {
-          const unsubscribe = onAuthStateChanged(auth, (user) => {
+          const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+              // Get ID token and create session
+              const idToken = await user.getIdToken()
+              await this.createSession(idToken)
+            }
+            
             this.user = createPublicUser(user)
             this.initialized = true
             this.initializationPromise = null
@@ -109,6 +115,20 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async createSession(idToken: string) {
+      try {
+        // Create session cookie
+        await $fetch('/api/auth/session', {
+          method: 'POST',
+          body: { idToken },
+          credentials: 'include'
+        })
+      } catch (error) {
+        console.error('Failed to create session:', error)
+        throw error
+      }
+    },
+
     async login(email: string, password: string) {
       this.loading = true
       this.error = null
@@ -116,6 +136,8 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        const idToken = await userCredential.user.getIdToken()
+        await this.createSession(idToken)
         this.user = createPublicUser(userCredential.user)
         return this.user
       } catch (error: any) {
@@ -133,6 +155,8 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+        const idToken = await userCredential.user.getIdToken()
+        await this.createSession(idToken)
         this.user = createPublicUser(userCredential.user)
         return this.user
       } catch (error: any) {
@@ -147,6 +171,11 @@ export const useAuthStore = defineStore('auth', {
       const { auth } = useFirebase()
       try {
         await signOut(auth)
+        // Clear session cookie
+        await $fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include'
+        })
         this.user = null
         this.initialized = false
       } catch (error: any) {
