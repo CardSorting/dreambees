@@ -1,6 +1,5 @@
 import { MediaConvert } from '@aws-sdk/client-mediaconvert'
 import { S3 } from '@aws-sdk/client-s3'
-import { useRuntimeConfig } from '#imports'
 
 class MediaConvertClientSingleton {
   private static instance: MediaConvertClientSingleton;
@@ -8,22 +7,24 @@ class MediaConvertClientSingleton {
   private s3Client: S3;
 
   private constructor() {
-    const config = useRuntimeConfig()
+    if (typeof process === 'undefined' || process.release?.name !== 'node') {
+      throw new Error('MediaConvertClient can only be instantiated on the server side')
+    }
 
     this.mediaConvertClient = new MediaConvert({
-      endpoint: config.awsMediaConvertEndpoint,
-      region: config.awsRegion,
+      endpoint: process.env.AWS_MEDIACONVERT_ENDPOINT as string,
+      region: process.env.AWS_REGION as string,
       credentials: {
-        accessKeyId: config.awsAccessKeyId,
-        secretAccessKey: config.awsSecretAccessKey
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string
       }
     });
 
     this.s3Client = new S3({
-      region: config.awsRegion,
+      region: process.env.AWS_REGION as string,
       credentials: {
-        accessKeyId: config.awsAccessKeyId,
-        secretAccessKey: config.awsSecretAccessKey
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string
       }
     });
   }

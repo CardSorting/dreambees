@@ -2,16 +2,17 @@ import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { MediaConvertClient } from './MediaConvertClient'
 import { OutputPathResolver, type OutputLocation } from './OutputPathResolver'
-import { useRuntimeConfig } from '#imports'
 
 export class URLHandler {
   private static instance: URLHandler;
   private s3Client;
   private outputResolver;
-  private config;
 
   private constructor() {
-    this.config = useRuntimeConfig()
+    if (typeof process === 'undefined' || process.release?.name !== 'node') {
+      throw new Error('URLHandler can only be instantiated on the server side')
+    }
+    
     this.s3Client = MediaConvertClient.getInstance().getS3Client();
     this.outputResolver = OutputPathResolver.getInstance();
   }
@@ -36,7 +37,7 @@ export class URLHandler {
     try {
       console.log('Generating signed URL for:', key);
       const command = new GetObjectCommand({
-        Bucket: this.config.awsS3Bucket,
+        Bucket: process.env.AWS_S3_BUCKET as string,
         Key: key,
         ResponseContentDisposition: 'inline'
       });
@@ -52,7 +53,7 @@ export class URLHandler {
   }
 
   private getCloudFrontUrl(key: string): string {
-    const cloudFrontDomain = this.config.awsCloudFrontDomain;
+    const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN as string;
     return `https://${cloudFrontDomain}/${key}`;
   }
 
