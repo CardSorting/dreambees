@@ -2,6 +2,10 @@ import { consumeQueue, QUEUES } from '../utils/queue'
 import { type QueueMessage, type VideoGenerationMessage } from '../utils/types'
 import { startVideoGeneration } from '../services/video-processor'
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Video generator worker can only be used on the server side')
+}
+
 async function handleVideoGeneration(message: QueueMessage<VideoGenerationMessage>) {
   console.log('Handling video generation message:', {
     jobId: message.jobId,
