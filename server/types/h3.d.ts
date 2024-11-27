@@ -4,6 +4,14 @@ declare module 'h3' {
       req: any;
       res: any;
     };
+    path: string;
+    context: {
+      auth?: {
+        uid: string;
+        email?: string;
+      };
+      [key: string]: any;
+    };
   }
 
   export function defineEventHandler<T>(handler: (event: H3Event) => Promise<T>): (event: H3Event) => Promise<T>;

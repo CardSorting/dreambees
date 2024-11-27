@@ -34,6 +34,7 @@ export interface MediaConvertJobStatus {
   errorMessage?: string;
   progress?: number;
   outputUri?: string;
+  mediaConvertJobId?: string;
 }
 
 export interface VideoJobInput {
@@ -311,7 +312,7 @@ export class JobManager {
 
           default:
             // For SUBMITTED or any other status, continue monitoring
-            // Keep the previous progress value
+            // Keep the previous progress value and ensure mediaConvertJobId is passed
             const existingStatus = await getJobStatus(jobId);
             await updateJobProgress(
               jobId,
@@ -343,7 +344,8 @@ export class JobManager {
       const response: MediaConvertJobStatus = {
         status: Job.Status as MediaConvertStatusType,
         errorMessage: Job.ErrorMessage,
-        progress: typeof Job.JobPercentComplete === 'number' ? Job.JobPercentComplete : undefined
+        progress: typeof Job.JobPercentComplete === 'number' ? Job.JobPercentComplete : undefined,
+        mediaConvertJobId // Include the mediaConvertJobId in the response
       };
 
       if (Job.Status === MediaConvertStatus.COMPLETE) {
@@ -400,7 +402,8 @@ export class JobManager {
       status: mediaConvertStatus,
       errorMessage: status.error,
       progress: status.progress,
-      outputUri: status.videoUrl
+      outputUri: status.videoUrl,
+      mediaConvertJobId: status.mediaConvertJobId // Include the mediaConvertJobId in the response
     };
   }
 }
