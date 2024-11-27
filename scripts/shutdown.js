@@ -42,6 +42,16 @@ async function cleanBuildCache() {
   }
 }
 
+async function regenerateNuxtTypes() {
+  try {
+    console.log('Regenerating Nuxt types...');
+    await execAsync('npx nuxi prepare');
+    console.log('Successfully regenerated Nuxt types');
+  } catch (error) {
+    console.error('Error regenerating Nuxt types:', error);
+  }
+}
+
 async function killProcess(pid) {
   try {
     // Always use force termination for reliability
@@ -77,28 +87,30 @@ async function gracefulShutdown() {
     let pids = await findNodeProcesses();
     if (pids.length === 0) {
       console.log('No Node.js processes found.');
-      return;
-    }
+    } else {
+      console.log(`Found ${pids.length} Node.js processes`);
 
-    console.log(`Found ${pids.length} Node.js processes`);
+      // Terminate all processes
+      let terminatedCount = await terminateProcesses(pids);
+      console.log(`Successfully terminated ${terminatedCount} processes`);
 
-    // Terminate all processes
-    let terminatedCount = await terminateProcesses(pids);
-    console.log(`Successfully terminated ${terminatedCount} processes`);
-
-    // Quick second pass for any remaining processes
-    pids = await findNodeProcesses();
-    if (pids.length > 0) {
-      console.log(`Found ${pids.length} remaining processes, attempting final termination...`);
-      terminatedCount = await terminateProcesses(pids);
-      console.log(`Successfully terminated ${terminatedCount} remaining processes`);
-      
-      // Final check
+      // Quick second pass for any remaining processes
       pids = await findNodeProcesses();
       if (pids.length > 0) {
-        console.warn('Warning: Some processes could not be terminated:', pids);
+        console.log(`Found ${pids.length} remaining processes, attempting final termination...`);
+        terminatedCount = await terminateProcesses(pids);
+        console.log(`Successfully terminated ${terminatedCount} remaining processes`);
+        
+        // Final check
+        pids = await findNodeProcesses();
+        if (pids.length > 0) {
+          console.warn('Warning: Some processes could not be terminated:', pids);
+        }
       }
     }
+
+    // Regenerate Nuxt types after cleanup
+    await regenerateNuxtTypes();
 
     console.log('Shutdown complete.');
   } catch (error) {
