@@ -29,7 +29,8 @@ export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
       const defaultStatus: JobStatus = {
         status: JobStatus.PROCESSING,
         message: 'Initializing...',
-        progress: 0
+        progress: 0,
+        timestamp: Date.now()
       }
       return defaultStatus
     }
@@ -74,6 +75,9 @@ export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
               currentStatus.progress = previousProgress
           }
 
+          // Update timestamp
+          currentStatus.timestamp = Date.now()
+
           // Update Redis with latest status
           await redis.set(statusKey, currentStatus)
         }
@@ -89,7 +93,8 @@ export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
       progress: currentStatus.progress,
       error: currentStatus.error,
       videoUrl: currentStatus.videoUrl,
-      mediaConvertJobId: currentStatus.mediaConvertJobId
+      mediaConvertJobId: currentStatus.mediaConvertJobId,
+      timestamp: currentStatus.timestamp
     })
     
     return currentStatus
@@ -98,7 +103,9 @@ export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
     console.error('Error getting job status:', error)
     return {
       status: JobStatus.FAILED,
-      error: 'Failed to get job status'
+      error: 'Failed to get job status',
+      progress: 0,
+      timestamp: Date.now()
     }
   }
 }
@@ -121,21 +128,28 @@ export async function updateJobProgress(
     const newProgress = progress > currentProgress ? progress : currentProgress
     
     const currentStatus: JobStatus = {
-      ...(existingStatus || {}),
+      ...(existingStatus || {}), // Preserve all existing fields
       status: JobStatus.PROCESSING,
       progress: newProgress,
       message,
-      mediaConvertJobId: mediaConvertJobId || existingStatus?.mediaConvertJobId
+      timestamp: Date.now(),
+      mediaConvertJobId: mediaConvertJobId || existingStatus?.mediaConvertJobId,
+      // Preserve error and videoUrl if they exist
+      error: existingStatus?.error,
+      videoUrl: existingStatus?.videoUrl
     }
     
     // Update Redis with new status
     await redis.set(statusKey, currentStatus)
     
-    // Update queue
+    // Update queue with all fields
     const update: JobStatusUpdate = {
       progress: newProgress,
       message,
-      mediaConvertJobId: currentStatus.mediaConvertJobId
+      mediaConvertJobId: currentStatus.mediaConvertJobId,
+      timestamp: currentStatus.timestamp,
+      error: currentStatus.error,
+      videoUrl: currentStatus.videoUrl
     }
     await updateQueueJobStatus(jobId, JobStatus.PROCESSING, update)
   } catch (error) {
@@ -159,17 +173,25 @@ export async function markJobFailed(
       ...(existingStatus || {}),
       status: JobStatus.FAILED,
       error,
-      // Preserve the last progress value
-      progress: existingStatus?.progress || 0
+      timestamp: Date.now(),
+      // Preserve the last progress value and other fields
+      progress: existingStatus?.progress || 0,
+      mediaConvertJobId: existingStatus?.mediaConvertJobId,
+      videoUrl: existingStatus?.videoUrl,
+      message: existingStatus?.message
     }
     
     // Update Redis with failed status
     await redis.set(statusKey, currentStatus)
     
-    // Update queue
+    // Update queue with all fields
     const update: JobStatusUpdate = { 
       error,
-      progress: currentStatus.progress 
+      progress: currentStatus.progress,
+      timestamp: currentStatus.timestamp,
+      mediaConvertJobId: currentStatus.mediaConvertJobId,
+      videoUrl: currentStatus.videoUrl,
+      message: currentStatus.message
     }
     await updateQueueJobStatus(jobId, JobStatus.FAILED, update)
   } catch (error) {
@@ -193,16 +215,24 @@ export async function markJobCompleted(
       ...(existingStatus || {}),
       status: JobStatus.COMPLETED,
       videoUrl,
-      progress: 100
+      progress: 100,
+      timestamp: Date.now(),
+      // Preserve other fields
+      mediaConvertJobId: existingStatus?.mediaConvertJobId,
+      message: existingStatus?.message,
+      error: undefined // Clear any errors
     }
     
     // Update Redis with completed status
     await redis.set(statusKey, currentStatus)
     
-    // Update queue
+    // Update queue with all fields
     const update: JobStatusUpdate = { 
       videoUrl,
-      progress: 100
+      progress: 100,
+      timestamp: currentStatus.timestamp,
+      mediaConvertJobId: currentStatus.mediaConvertJobId,
+      message: currentStatus.message
     }
     await updateQueueJobStatus(jobId, JobStatus.COMPLETED, update)
   } catch (error) {

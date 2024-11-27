@@ -13,6 +13,7 @@ export interface JobStatusUpdate {
   error?: string;
   videoUrl?: string;
   mediaConvertJobId?: string;
+  timestamp?: number;
 }
 
 export interface JobStatus {
@@ -22,4 +23,5 @@ export interface JobStatus {
   error?: string;
   videoUrl?: string;
   mediaConvertJobId?: string;
+  timestamp?: number;
 }
