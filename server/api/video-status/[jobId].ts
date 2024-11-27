@@ -1,8 +1,12 @@
-import { getJobStatus } from '~/server/utils/job-status'
-import { ERROR_MESSAGES, STATUS_MESSAGES } from '~/utils/video-generator-utils'
+import { defineEventHandler, getHeader } from 'h3'
+import { getJobStatus } from '../../utils/job-status'
+import { ERROR_MESSAGES, STATUS_MESSAGES } from '../../../utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
-import { verifyAuthToken } from '~/server/utils/firebase-admin'
-import { useRuntimeConfig } from '#imports'
+import { verifyAuthToken } from '../../utils/firebase-admin'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Video status API can only be used on the server side')
+}
 
 function validateVideoUrl(url: string | undefined, cloudFrontDomain: string): string | undefined {
   if (!url) return undefined;
@@ -43,14 +47,12 @@ function validateVideoUrl(url: string | undefined, cloudFrontDomain: string): st
 
 export default defineEventHandler(async (event) => {
   try {
-    const config = useRuntimeConfig()
-    
     // Initialize Redis
     let redis: Redis;
     try {
       redis = new Redis({
-        url: config.redisUrl,
-        token: config.redisToken,
+        url: process.env.REDIS_URL as string,
+        token: process.env.REDIS_TOKEN as string,
       });
     } catch (error) {
       console.error('Failed to initialize Redis:', error);
@@ -63,7 +65,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verify required configuration
-    if (!config.redisUrl || !config.redisToken || !config.awsCloudFrontDomain) {
+    if (!process.env.REDIS_URL || !process.env.REDIS_TOKEN || !process.env.AWS_CLOUDFRONT_DOMAIN) {
       console.error('Missing required configuration');
       return {
         success: false,
@@ -143,7 +145,7 @@ export default defineEventHandler(async (event) => {
     // Map internal status to user-friendly messages
     switch (status.status) {
       case 'completed': {
-        const validatedUrl = validateVideoUrl(status.videoUrl, config.awsCloudFrontDomain);
+        const validatedUrl = validateVideoUrl(status.videoUrl, process.env.AWS_CLOUDFRONT_DOMAIN as string);
         if (!validatedUrl) {
           return {
             success: false,
