@@ -49,9 +49,12 @@ export async function updateJobStatus(
     
     if (existingStatus) {
       try {
-        existingData = JSON.parse(existingStatus);
+        // Handle both string and object cases
+        existingData = typeof existingStatus === 'string' 
+          ? JSON.parse(existingStatus)
+          : existingStatus;
       } catch (e) {
-        console.warn('Failed to parse existing status:', e);
+        console.warn('Failed to parse existing status:', existingStatus);
       }
     }
 
