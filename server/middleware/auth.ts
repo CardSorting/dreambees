@@ -5,14 +5,19 @@ if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Auth middleware can only be used on the server side')
 }
 
+// Public endpoints that don't require authentication
+const PUBLIC_ENDPOINTS = [
+  '/api/video-status/completed'
+];
+
 export default defineEventHandler(async (event: H3Event) => {
   // Skip auth for non-API routes
   if (!event.path.startsWith('/api/')) {
     return
   }
 
-  // Skip auth for completed videos endpoint (public access)
-  if (event.path === '/api/video-status/completed') {
+  // Skip auth for public endpoints
+  if (PUBLIC_ENDPOINTS.includes(event.path)) {
     return
   }
 
@@ -35,7 +40,7 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    // Extract and validate token
+    // Extract token
     const token = authHeader.split('Bearer ')[1]?.trim()
     if (!token) {
       throw createError({
@@ -44,15 +49,7 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    // Basic token format validation
-    if (!token.includes('.') || token.split('.').length !== 3) {
-      throw createError({
-        statusCode: 401,
-        message: 'Invalid token format. Expected JWT format'
-      })
-    }
-
-    // Verify the token
+    // Verify the token using Firebase Admin
     const result = await verifyAuthToken(token)
     if (!result.success) {
       throw createError({
