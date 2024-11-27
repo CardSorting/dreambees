@@ -7,6 +7,8 @@ export class URLHandler {
   private static instance: URLHandler;
   private s3Client;
   private outputResolver;
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY = 2000;
 
   private constructor() {
     if (typeof process === 'undefined' || process.release?.name !== 'node') {
@@ -29,6 +31,7 @@ export class URLHandler {
       const response = await fetch(url, { method: 'HEAD' });
       return response.ok;
     } catch (error) {
+      console.warn('URL accessibility check failed:', error);
       return false;
     }
   }
@@ -58,14 +61,19 @@ export class URLHandler {
   }
 
   /**
-   * Get accessible URL for a MediaConvert job output
+   * Get accessible URL for a MediaConvert job output with retries
    */
-  public async getJobOutputUrl(jobId: string): Promise<string> {
+  public async getJobOutputUrl(jobId: string, retryCount = 0): Promise<string> {
     try {
       // Get the actual output location from the resolver
       const output = await this.outputResolver.resolveOutputPath(jobId);
       if (!output) {
-        throw new Error('Output file not found');
+        if (retryCount < this.MAX_RETRIES) {
+          console.log(`Output not found, retry ${retryCount + 1}/${this.MAX_RETRIES}`);
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+          return this.getJobOutputUrl(jobId, retryCount + 1);
+        }
+        throw new Error('Output file not found after retries');
       }
 
       console.log('Found output location:', output);
@@ -83,6 +91,11 @@ export class URLHandler {
       console.log('CloudFront URL not accessible, falling back to signed S3 URL');
       return await this.getSignedS3Url(output.key);
     } catch (error) {
+      if (retryCount < this.MAX_RETRIES) {
+        console.log(`Error getting URL, retry ${retryCount + 1}/${this.MAX_RETRIES}`);
+        await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+        return this.getJobOutputUrl(jobId, retryCount + 1);
+      }
       console.error('Failed to get job output URL:', error);
       throw error;
     }
