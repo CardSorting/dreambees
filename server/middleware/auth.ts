@@ -1,5 +1,6 @@
 import { H3Event, defineEventHandler, createError } from 'h3'
 import { verifySessionCookie } from '../utils/firebase-admin'
+import { AuthContext } from '../types/auth'
 
 if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Auth middleware can only be used on the server side')
@@ -11,12 +12,6 @@ const PUBLIC_ENDPOINTS = [
   '/api/auth/session',
   '/api/auth/logout'
 ];
-
-// Define auth context type
-interface AuthContext {
-  uid: string;
-  email?: string | undefined;
-}
 
 declare module 'h3' {
   interface H3EventContext {
@@ -66,7 +61,7 @@ export default defineEventHandler(async (event: H3Event) => {
     // Add user info to event context
     event.context.auth = {
       uid: result.uid || 'anonymous',  // Provide default value
-      email: result.email  // Optional field
+      firebaseToken: sessionCookie  // Use the session cookie as the firebase token
     }
 
   } catch (error: any) {
