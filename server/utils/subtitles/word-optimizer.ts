@@ -4,6 +4,10 @@ import { SRTBlock, SRTFileParser } from './block-processor.js';
 import { SRTTimestamp, TimestampParser } from './timestamp-parser.js';
 import type { WordTiming } from '../script-generator.js';
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Word optimizer can only be used on the server side')
+}
+
 export class WordOptimizer {
   constructor(private options: SubtitleOptions) {}
 

@@ -2,6 +2,10 @@ import type { Result } from './subtitle-types.js';
 import { BlockError, isBaseError } from './subtitle-errors.js';
 import { SRTTimestamp } from './timestamp-parser.js';
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Subtitle block processor can only be used on the server side')
+}
+
 class BlockValidator {
   static validateStructure(lines: string[], index: number): Result<void> {
     console.log(`Validating block structure for index ${index}:`, {
