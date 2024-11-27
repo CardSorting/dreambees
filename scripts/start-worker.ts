@@ -4,6 +4,10 @@ import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Worker script can only be run on the server side')
+}
+
 // Load environment variables first
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
