@@ -10,15 +10,22 @@ export const QUEUES = {
   STATUS_UPDATES: 'status-updates'
 }
 
-// Initialize Redis with runtime config
-const config = useRuntimeConfig()
-const redis = new Redis({
-  url: config.redisUrl,
-  token: config.redisToken,
-})
+// Helper function to get Redis client
+function getRedisClient() {
+  // Ensure we're on the server side
+  if (process.server) {
+    const config = useRuntimeConfig()
+    return new Redis({
+      url: config.redisUrl,
+      token: config.redisToken,
+    })
+  }
+  throw new Error('Redis operations can only be performed on the server side')
+}
 
 export async function publishMessage(queue: string, message: any): Promise<void> {
   try {
+    const redis = getRedisClient()
     // Ensure message is properly stringified
     const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
     console.log(`Publishing message to queue ${queue}:`, messageStr);
@@ -35,6 +42,7 @@ export async function updateJobStatus(
   details: JobStatusUpdate = {}
 ): Promise<void> {
   try {
+    const redis = getRedisClient()
     const statusKey = `job_status:${jobId}`;
     
     // Get existing status to preserve values
@@ -86,6 +94,7 @@ export async function consumeQueue<T>(
   options: { prefetch?: number } = {}
 ): Promise<void> {
   try {
+    const redis = getRedisClient()
     console.log(`Started consuming from queue: ${queue}`)
     
     // Continuous polling

@@ -3,16 +3,30 @@ import { getSignedS3Url } from './s3'
 import { Redis } from '@upstash/redis'
 import { useRuntimeConfig } from '#imports'
 
-const config = useRuntimeConfig()
+// Helper function to get Redis client
+function getRedisClient() {
+  // Ensure we're on the server side
+  if (process.server) {
+    const config = useRuntimeConfig()
+    return new Redis({
+      url: config.redisUrl,
+      token: config.redisToken,
+    })
+  }
+  throw new Error('Redis operations can only be performed on the server side')
+}
 
-const openai = new OpenAI({
-  apiKey: config.openaiApiKey
-})
-
-const redis = new Redis({
-  url: config.redisUrl,
-  token: config.redisToken,
-})
+// Helper function to get OpenAI client
+function getOpenAIClient() {
+  // Ensure we're on the server side
+  if (process.server) {
+    const config = useRuntimeConfig()
+    return new OpenAI({
+      apiKey: config.openaiApiKey
+    })
+  }
+  throw new Error('OpenAI operations can only be performed on the server side')
+}
 
 export interface ScriptGenerationResult {
   script: string;
@@ -36,6 +50,9 @@ const CACHE_EXPIRY = 60 * 60 * 24 * 7 // 7 days in seconds
 
 export async function generateScript(imageKey: string): Promise<ScriptGenerationResult> {
   try {
+    const redis = getRedisClient()
+    const openai = getOpenAIClient()
+
     // Check cache first
     const cacheKey = `script:${imageKey}`
     const cachedResult = await redis.get<ScriptGenerationResult>(cacheKey)
@@ -110,6 +127,7 @@ export async function generateScript(imageKey: string): Promise<ScriptGeneration
 
 export async function generateSpeech(text: string): Promise<Buffer> {
   try {
+    const openai = getOpenAIClient()
     const speechResponse = await openai.audio.speech.create({
       model: "tts-1",
       voice: "alloy",
@@ -134,6 +152,7 @@ export async function generateSpeech(text: string): Promise<Buffer> {
 
 export async function generateTranscription(audioFile: File): Promise<TranscriptionResult> {
   try {
+    const openai = getOpenAIClient()
     // Use Whisper with word-level timestamps
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
