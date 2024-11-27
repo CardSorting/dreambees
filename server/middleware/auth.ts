@@ -1,5 +1,5 @@
 import { H3Event, defineEventHandler, createError } from 'h3'
-import { getAuth } from 'firebase-admin/auth'
+import { verifySessionCookie } from '../utils/firebase-admin'
 
 if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Auth middleware can only be used on the server side')
@@ -11,6 +11,18 @@ const PUBLIC_ENDPOINTS = [
   '/api/auth/session',
   '/api/auth/logout'
 ];
+
+// Define auth context type
+interface AuthContext {
+  uid: string;
+  email?: string | undefined;
+}
+
+declare module 'h3' {
+  interface H3EventContext {
+    auth: AuthContext;
+  }
+}
 
 export default defineEventHandler(async (event: H3Event) => {
   // Skip auth for non-API routes
@@ -35,24 +47,10 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    try {
-      // Verify session cookie with Firebase Admin
-      const decodedClaims = await getAuth().verifySessionCookie(
-        sessionCookie,
-        true // Check if cookie is revoked
-      )
-      
-      // Add user info to event context
-      event.context.auth = {
-        uid: decodedClaims.uid,
-        email: decodedClaims.email
-      }
-    } catch (error) {
-      console.error('Session verification failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        path: event.path
-      })
-
+    // Verify session cookie
+    const result = await verifySessionCookie(sessionCookie)
+    
+    if (!result.success) {
       // Clear invalid session cookie
       event.node.res.setHeader('Set-Cookie', [
         'session=; Max-Age=0; HttpOnly; Path=/; SameSite=Lax' + 
@@ -61,8 +59,14 @@ export default defineEventHandler(async (event: H3Event) => {
 
       throw createError({
         statusCode: 401,
-        message: 'Invalid session'
+        message: result.error || 'Invalid session'
       })
+    }
+
+    // Add user info to event context
+    event.context.auth = {
+      uid: result.uid || 'anonymous',  // Provide default value
+      email: result.email  // Optional field
     }
 
   } catch (error: any) {

@@ -20,11 +20,7 @@ if (!admin.apps.length) {
     })
 
     admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: serviceAccount.project_id,
-        clientEmail: serviceAccount.client_email,
-        privateKey: serviceAccount.private_key
-      })
+      credential: admin.credential.cert(serviceAccount)
     })
     console.log('Firebase Admin initialized successfully')
   } catch (error) {
@@ -35,23 +31,54 @@ if (!admin.apps.length) {
 
 export async function verifyAuthToken(token: string) {
   try {
-    // Try using Firebase Admin's built-in verification
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(token)
-      return {
-        success: true,
-        uid: decodedToken.uid,
-        email: decodedToken.email
-      }
-    } catch (firebaseError) {
-      console.error('Firebase token verification failed:', firebaseError)
-      throw firebaseError
+    const decodedToken = await admin.auth().verifyIdToken(token)
+    return {
+      success: true,
+      uid: decodedToken.uid,
+      email: decodedToken.email
     }
   } catch (error: any) {
     console.error('Token verification failed:', error)
     return {
       success: false,
       error: error.message || 'Token verification failed'
+    }
+  }
+}
+
+export async function createSessionCookie(idToken: string, expiresIn: number) {
+  try {
+    // First verify the ID token
+    await admin.auth().verifyIdToken(idToken)
+    
+    // Then create the session cookie
+    const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn })
+    return {
+      success: true,
+      sessionCookie
+    }
+  } catch (error: any) {
+    console.error('Session cookie creation failed:', error)
+    return {
+      success: false,
+      error: error.message || 'Failed to create session cookie'
+    }
+  }
+}
+
+export async function verifySessionCookie(sessionCookie: string) {
+  try {
+    const decodedClaims = await admin.auth().verifySessionCookie(sessionCookie, true)
+    return {
+      success: true,
+      uid: decodedClaims.uid,
+      email: decodedClaims.email
+    }
+  } catch (error: any) {
+    console.error('Session cookie verification failed:', error)
+    return {
+      success: false,
+      error: error.message || 'Invalid session cookie'
     }
   }
 }
