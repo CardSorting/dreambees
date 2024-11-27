@@ -16,7 +16,6 @@ import type {
   DocumentData
 } from 'firebase/firestore'
 import { useNuxtApp } from '#app'
-import { getAuth } from 'firebase/auth'
 
 interface Video {
   id: string
@@ -65,19 +64,8 @@ export const useVideosStore = defineStore('videos', {
           throw new Error('Not authenticated')
         }
 
-        // Get the Firebase auth instance to get the token
-        const { $firebase } = useNuxtApp()
-        const auth = getAuth($firebase.app)
-        const token = await auth.currentUser?.getIdToken()
-        
-        if (!token) {
-          throw new Error('Failed to get authentication token')
-        }
-
         const data = await $fetch<{ success: boolean, videos?: Video[], message?: string }>('/api/video-status/completed', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include' // Include cookies in the request
         })
         
         if (!data.success) {
