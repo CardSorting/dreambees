@@ -27,11 +27,9 @@ export function useJobStatus(callbacks?: JobStatusCallbacks) {
 
   async function poll(jobId: string) {
     try {
-      // Use the API endpoint instead of direct server utility
+      // Use session-based auth with credentials
       const response = await fetch(`/api/video-status/${jobId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        credentials: 'include' // Include cookies in the request
       })
       
       if (!response.ok) {
