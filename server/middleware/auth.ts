@@ -36,8 +36,11 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     try {
-      // Verify session cookie
-      const decodedClaims = await getAuth().verifySessionCookie(sessionCookie, true)
+      // Verify session cookie with Firebase Admin
+      const decodedClaims = await getAuth().verifySessionCookie(
+        sessionCookie,
+        true // Check if cookie is revoked
+      )
       
       // Add user info to event context
       event.context.auth = {
@@ -45,7 +48,17 @@ export default defineEventHandler(async (event: H3Event) => {
         email: decodedClaims.email
       }
     } catch (error) {
-      console.error('Session verification failed:', error)
+      console.error('Session verification failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        path: event.path
+      })
+
+      // Clear invalid session cookie
+      event.node.res.setHeader('Set-Cookie', [
+        'session=; Max-Age=0; HttpOnly; Path=/; SameSite=Lax' + 
+        (process.env.NODE_ENV === 'production' ? '; Secure' : '')
+      ])
+
       throw createError({
         statusCode: 401,
         message: 'Invalid session'
