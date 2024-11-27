@@ -1,4 +1,4 @@
-import { defineEventHandler, getHeader } from 'h3'
+import { defineEventHandler, getHeader, H3Event } from 'h3'
 import { getJobStatus } from '../../utils/job-status'
 import { ERROR_MESSAGES } from '../../../utils/video-generator-utils'
 import { Redis } from '@upstash/redis'
@@ -8,7 +8,7 @@ if (typeof process === 'undefined' || process.release?.name !== 'node') {
   throw new Error('Video status completed API can only be used on the server side')
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event: H3Event) => {
   try {
     const redis = new Redis({
       url: process.env.REDIS_URL as string,
