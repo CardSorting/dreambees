@@ -1,8 +1,8 @@
 import { getMediaConvertJobStatus, MediaConvertStatus } from './mediaconvert'
 import { updateJobStatus as updateQueueJobStatus } from './queue'
 import { Redis } from '@upstash/redis'
-import { JobStatus, type JobStatusType, type JobStatusUpdate } from '~/types/job'
-import { useRuntimeConfig } from '#imports'
+import { JobStatus, type JobStatusType, type JobStatusUpdate } from '../../types/job'
+import { useRuntimeConfig } from 'nuxt/app'
 
 // Helper function to get Redis client
 function getRedisClient() {
@@ -10,8 +10,8 @@ function getRedisClient() {
   if (process.server) {
     const config = useRuntimeConfig()
     return new Redis({
-      url: config.redisUrl,
-      token: config.redisToken,
+      url: config.redisUrl as string,
+      token: config.redisToken as string,
     })
   }
   throw new Error('Redis operations can only be performed on the server side')
