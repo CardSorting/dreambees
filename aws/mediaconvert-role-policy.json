@@ -1,0 +1,25 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::video-generator-subtitles/images/*",
+                "arn:aws:s3:::video-generator-subtitles/audio/*",
+                "arn:aws:s3:::video-generator-subtitles/subtitles/*",
+                "arn:aws:s3:::video-generator-subtitles/output/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "mediaconvert:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

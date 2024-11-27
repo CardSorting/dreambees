@@ -1,0 +1,7 @@
+{
+    "Name": "video-generator-oac",
+    "Description": "OAC for video generator S3 bucket",
+    "SigningProtocol": "sigv4",
+    "SigningBehavior": "always",
+    "OriginAccessControlOriginType": "s3"
+}
