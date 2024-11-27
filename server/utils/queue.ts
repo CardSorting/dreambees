@@ -1,5 +1,4 @@
 import { Redis } from '@upstash/redis'
-import { useRuntimeConfig } from '#imports'
 import { JobStatus, type JobStatusType, type JobStatusUpdate, type QueueMessage } from './types'
 
 // Re-export QueueMessage type
@@ -13,11 +12,10 @@ export const QUEUES = {
 // Helper function to get Redis client
 function getRedisClient() {
   // Ensure we're on the server side
-  if (process.server) {
-    const config = useRuntimeConfig()
+  if (typeof process !== 'undefined' && process.release?.name === 'node') {
     return new Redis({
-      url: config.redisUrl,
-      token: config.redisToken,
+      url: process.env.REDIS_URL as string,
+      token: process.env.REDIS_TOKEN as string,
     })
   }
   throw new Error('Redis operations can only be performed on the server side')
