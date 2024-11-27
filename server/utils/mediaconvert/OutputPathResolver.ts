@@ -2,6 +2,7 @@ import { ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { GetJobCommand } from '@aws-sdk/client-mediaconvert'
 import { Redis } from '@upstash/redis'
 import { MediaConvertClient } from './MediaConvertClient'
+import { useRuntimeConfig } from '#imports'
 
 export interface OutputLocation {
   key: string;
@@ -11,20 +12,36 @@ export interface OutputLocation {
   lastModified?: Date;
 }
 
+// Helper function to get Redis client
+function getRedisClient() {
+  // Ensure we're on the server side
+  if (process.server) {
+    const config = useRuntimeConfig()
+    return new Redis({
+      url: config.redisUrl,
+      token: config.redisToken,
+    })
+  }
+  throw new Error('Redis operations can only be performed on the server side')
+}
+
 export class OutputPathResolver {
   private static instance: OutputPathResolver;
   private s3Client;
   private mediaConvertClient;
   private redis: Redis;
+  private config;
 
   private constructor() {
+    if (!process.server) {
+      throw new Error('OutputPathResolver can only be instantiated on the server side')
+    }
+    
+    this.config = useRuntimeConfig()
     const client = MediaConvertClient.getInstance();
     this.s3Client = client.getS3Client();
     this.mediaConvertClient = client.getMediaConvertClient();
-    this.redis = new Redis({
-      url: process.env.REDIS_URL!,
-      token: process.env.REDIS_TOKEN!
-    });
+    this.redis = getRedisClient();
   }
 
   public static getInstance(): OutputPathResolver {
@@ -97,7 +114,7 @@ export class OutputPathResolver {
       if (await this.verifyOutput(outputPath)) {
         const output: OutputLocation = {
           key: outputPath,
-          bucket: process.env.AWS_S3_BUCKET!,
+          bucket: this.config.awsS3Bucket,
           s3Uri: this.getS3Uri(outputPath)
         };
 
@@ -147,7 +164,7 @@ export class OutputPathResolver {
   private async listDirectory(prefix: string): Promise<OutputLocation[]> {
     try {
       const command = new ListObjectsV2Command({
-        Bucket: process.env.AWS_S3_BUCKET!,
+        Bucket: this.config.awsS3Bucket,
         Prefix: prefix,
         MaxKeys: 10
       });
@@ -157,7 +174,7 @@ export class OutputPathResolver {
 
       return response.Contents.map(file => ({
         key: file.Key!,
-        bucket: process.env.AWS_S3_BUCKET!,
+        bucket: this.config.awsS3Bucket,
         s3Uri: this.getS3Uri(file.Key!),
         size: file.Size,
         lastModified: file.LastModified
@@ -174,7 +191,7 @@ export class OutputPathResolver {
   private async getFileDetails(key: string): Promise<{ size?: number; lastModified?: Date } | null> {
     try {
       const command = new ListObjectsV2Command({
-        Bucket: process.env.AWS_S3_BUCKET!,
+        Bucket: this.config.awsS3Bucket,
         Prefix: key,
         MaxKeys: 1
       });
@@ -201,7 +218,7 @@ export class OutputPathResolver {
   public async verifyOutput(key: string): Promise<boolean> {
     try {
       const command = new ListObjectsV2Command({
-        Bucket: process.env.AWS_S3_BUCKET!,
+        Bucket: this.config.awsS3Bucket,
         Prefix: key,
         MaxKeys: 1
       });
@@ -218,7 +235,7 @@ export class OutputPathResolver {
    * Get the S3 URI for a given key
    */
   public getS3Uri(key: string): string {
-    return `s3://${process.env.AWS_S3_BUCKET}/${key}`;
+    return `s3://${this.config.awsS3Bucket}/${key}`;
   }
 
   /**

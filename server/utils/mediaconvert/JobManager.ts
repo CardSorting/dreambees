@@ -18,6 +18,7 @@ import {
   markJobCompleted
 } from '../job-status'
 import { JobStatus, type JobStatusType } from '../types'
+import { useRuntimeConfig } from '#imports'
 
 export const MediaConvertStatus = {
   SUBMITTED: 'SUBMITTED',
@@ -48,11 +49,17 @@ export class JobManager {
   private mediaConvertClient;
   private urlHandler;
   private outputResolver;
+  private config;
   private readonly CHECK_INTERVAL = 10000; // 10 seconds
   private readonly MAX_OUTPUT_RETRIES = 10; // Maximum number of retries for output file
   private readonly OUTPUT_RETRY_DELAY = 5000; // 5 seconds between retries
 
   private constructor() {
+    if (!process.server) {
+      throw new Error('JobManager can only be instantiated on the server side')
+    }
+    
+    this.config = useRuntimeConfig()
     this.mediaConvertClient = MediaConvertClient.getInstance().getMediaConvertClient();
     this.urlHandler = URLHandler.getInstance();
     this.outputResolver = OutputPathResolver.getInstance();
@@ -92,7 +99,7 @@ export class JobManager {
     const outputPath = `output/${outputFilename}`;
 
     return {
-      Role: process.env.AWS_MEDIACONVERT_ROLE,
+      Role: this.config.awsMediaConvertRole,
       Settings: {
         TimecodeConfig: {
           Source: "ZEROBASED"
@@ -109,10 +116,10 @@ export class JobManager {
               Rotate: "AUTO"
             },
             TimecodeSource: "ZEROBASED",
-            FileInput: `s3://${process.env.AWS_S3_BUCKET}/${input.audioKey}`,
+            FileInput: `s3://${this.config.awsS3Bucket}/${input.audioKey}`,
             ImageInserter: {
               InsertableImages: [{
-                ImageInserterInput: `s3://${process.env.AWS_S3_BUCKET}/${input.imageKey}`,
+                ImageInserterInput: `s3://${this.config.awsS3Bucket}/${input.imageKey}`,
                 Layer: 0,
                 ImageX: 0,
                 ImageY: 0,
@@ -128,7 +135,7 @@ export class JobManager {
                 SourceSettings: {
                   SourceType: "SRT",
                   FileSourceSettings: {
-                    SourceFile: `s3://${process.env.AWS_S3_BUCKET}/${input.subtitlesKey}`,
+                    SourceFile: `s3://${this.config.awsS3Bucket}/${input.subtitlesKey}`,
                     TimeDelta: 0
                   }
                 }
@@ -142,7 +149,7 @@ export class JobManager {
             OutputGroupSettings: {
               Type: "FILE_GROUP_SETTINGS",
               FileGroupSettings: {
-                Destination: `s3://${process.env.AWS_S3_BUCKET}/${outputPath}`
+                Destination: `s3://${this.config.awsS3Bucket}/${outputPath}`
               }
             },
             Outputs: [
@@ -223,6 +230,10 @@ export class JobManager {
   }
 
   public async createJob(jobId: string, input: VideoJobInput): Promise<string> {
+    if (!process.server) {
+      throw new Error('MediaConvert jobs can only be created on the server side')
+    }
+
     console.log('Creating MediaConvert job with inputs:', input);
 
     try {
@@ -363,6 +374,10 @@ export class JobManager {
   }
 
   public async getJobStatus(jobId: string): Promise<MediaConvertJobStatus> {
+    if (!process.server) {
+      throw new Error('Job status can only be checked on the server side')
+    }
+
     const status = await getJobStatus(jobId);
     if (!status) {
       throw new Error('Job not found');
