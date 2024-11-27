@@ -1,6 +1,9 @@
 import { uploadToS3, s3Paths } from './s3'
 import sharp from 'sharp'
-import { useRuntimeConfig } from '#imports'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Media processor can only be used on the server side')
+}
 
 interface UploadedFile {
   key: string;
@@ -8,21 +11,13 @@ interface UploadedFile {
 }
 
 function getCloudFrontUrl(key: string): string {
-  if (!process.server) {
-    throw new Error('Media processing can only be performed on the server side')
-  }
-  const config = useRuntimeConfig()
-  return `https://${config.awsCloudFrontDomain}/${key}`
+  return `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${key}`
 }
 
 export async function processImageUpload(
   imageData: string,
   jobId: string
 ): Promise<UploadedFile> {
-  if (!process.server) {
-    throw new Error('Image processing can only be performed on the server side')
-  }
-
   try {
     console.log(`Processing image upload for job: ${jobId}`)
     
@@ -72,10 +67,6 @@ export async function processAudioUpload(
   audioBuffer: Buffer,
   jobId: string
 ): Promise<UploadedFile> {
-  if (!process.server) {
-    throw new Error('Audio processing can only be performed on the server side')
-  }
-
   try {
     console.log(`Processing audio upload for job: ${jobId}`)
 
@@ -97,10 +88,6 @@ export async function processSubtitlesUpload(
   subtitles: string,
   jobId: string
 ): Promise<UploadedFile> {
-  if (!process.server) {
-    throw new Error('Subtitles processing can only be performed on the server side')
-  }
-
   try {
     console.log(`Processing subtitles upload for job: ${jobId}`)
 
@@ -122,18 +109,10 @@ export async function processSubtitlesUpload(
 }
 
 export async function createAudioFileFromBuffer(audioBuffer: Buffer): Promise<File> {
-  if (!process.server) {
-    throw new Error('Audio file creation can only be performed on the server side')
-  }
-
   return new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' })
 }
 
 export async function getApproximateAudioDuration(audioBuffer: Buffer): Promise<number> {
-  if (!process.server) {
-    throw new Error('Audio duration calculation can only be performed on the server side')
-  }
-
   // Approximate duration based on MP3 bitrate (assuming 128kbps)
   const BITRATE = 128000 // bits per second
   const duration = (audioBuffer.length * 8) / BITRATE
@@ -141,10 +120,6 @@ export async function getApproximateAudioDuration(audioBuffer: Buffer): Promise<
 }
 
 export async function cleanupMediaFiles(jobId: string): Promise<void> {
-  if (!process.server) {
-    throw new Error('Media file cleanup can only be performed on the server side')
-  }
-
   try {
     console.log(`Cleaning up media files for job: ${jobId}`)
     // Note: In this implementation, we're relying on S3 lifecycle rules to clean up files
