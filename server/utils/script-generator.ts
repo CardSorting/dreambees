@@ -1,31 +1,24 @@
 import OpenAI from 'openai'
 import { getSignedS3Url } from './s3'
 import { Redis } from '@upstash/redis'
-import { useRuntimeConfig } from '#imports'
+
+if (typeof process === 'undefined' || process.release?.name !== 'node') {
+  throw new Error('Script generator can only be used on the server side')
+}
 
 // Helper function to get Redis client
 function getRedisClient() {
-  // Ensure we're on the server side
-  if (process.server) {
-    const config = useRuntimeConfig()
-    return new Redis({
-      url: config.redisUrl,
-      token: config.redisToken,
-    })
-  }
-  throw new Error('Redis operations can only be performed on the server side')
+  return new Redis({
+    url: process.env.REDIS_URL as string,
+    token: process.env.REDIS_TOKEN as string,
+  })
 }
 
 // Helper function to get OpenAI client
 function getOpenAIClient() {
-  // Ensure we're on the server side
-  if (process.server) {
-    const config = useRuntimeConfig()
-    return new OpenAI({
-      apiKey: config.openaiApiKey
-    })
-  }
-  throw new Error('OpenAI operations can only be performed on the server side')
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY as string
+  })
 }
 
 export interface ScriptGenerationResult {
