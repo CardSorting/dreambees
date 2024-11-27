@@ -45,7 +45,7 @@ async function cleanBuildCache() {
 async function regenerateNuxtTypes() {
   try {
     console.log('Regenerating Nuxt types...');
-    await execAsync('npx nuxi prepare');
+    await execAsync('npm run postinstall');
     console.log('Successfully regenerated Nuxt types');
   } catch (error) {
     console.error('Error regenerating Nuxt types:', error);
