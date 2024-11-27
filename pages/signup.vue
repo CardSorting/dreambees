@@ -24,14 +24,14 @@ watch(isSignedIn, (newValue) => {
     <div class="max-w-md w-full space-y-8">
       <div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
+          Create your account
         </h2>
       </div>
       
       <div class="mt-8">
-        <ClerkSignIn 
+        <ClerkSignUp 
           :routing="'path'"
-          :path="'/login'"
+          :path="'/signup'"
           :redirect-url="'/dashboard'"
           :appearance="{
             elements: {

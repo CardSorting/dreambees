@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
+import { useUser } from 'vue-clerk'
 import { 
   collection, 
   getDocs, 
@@ -59,8 +59,8 @@ export const useVideosStore = defineStore('videos', {
       this.error = null
 
       try {
-        const authStore = useAuthStore()
-        if (!authStore.user?.uid) {
+        const { user } = useUser()
+        if (!user.value?.id) {
           throw new Error('Not authenticated')
         }
 
@@ -84,13 +84,13 @@ export const useVideosStore = defineStore('videos', {
 
     async fetchCollections() {
       try {
-        const authStore = useAuthStore()
-        if (!authStore.user?.uid) {
+        const { user } = useUser()
+        if (!user.value?.id) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.user.uid}/collections`)
+        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${user.value.id}/collections`)
         const q = query(userCollectionsRef, orderBy('createdAt', 'desc'))
         const snapshot = await getDocs(q)
         
@@ -108,13 +108,13 @@ export const useVideosStore = defineStore('videos', {
 
     async createCollection(name: string) {
       try {
-        const authStore = useAuthStore()
-        if (!authStore.user?.uid) {
+        const { user } = useUser()
+        if (!user.value?.id) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${authStore.user.uid}/collections`)
+        const userCollectionsRef: CollectionReference = collection($firebase.firestore, `users/${user.value.id}/collections`)
         
         const newCollectionData = {
           name,
@@ -138,14 +138,14 @@ export const useVideosStore = defineStore('videos', {
 
     async addVideoToCollection(videoId: string, collectionId: string) {
       try {
-        const authStore = useAuthStore()
-        if (!authStore.user?.uid) {
+        const { user } = useUser()
+        if (!user.value?.id) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/collections/${collectionId}`)
-        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/videos/${videoId}`)
+        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${user.value.id}/collections/${collectionId}`)
+        const videoRef: DocumentReference = doc($firebase.firestore, `users/${user.value.id}/videos/${videoId}`)
 
         // Update video with collection ID
         await updateDoc(videoRef, {
@@ -174,14 +174,14 @@ export const useVideosStore = defineStore('videos', {
 
     async removeVideoFromCollection(videoId: string, collectionId: string) {
       try {
-        const authStore = useAuthStore()
-        if (!authStore.user?.uid) {
+        const { user } = useUser()
+        if (!user.value?.id) {
           throw new Error('Not authenticated')
         }
 
         const { $firebase } = useNuxtApp()
-        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/collections/${collectionId}`)
-        const videoRef: DocumentReference = doc($firebase.firestore, `users/${authStore.user.uid}/videos/${videoId}`)
+        const collectionRef: DocumentReference = doc($firebase.firestore, `users/${user.value.id}/collections/${collectionId}`)
+        const videoRef: DocumentReference = doc($firebase.firestore, `users/${user.value.id}/videos/${videoId}`)
 
         // Remove collection ID from video
         await updateDoc(videoRef, {

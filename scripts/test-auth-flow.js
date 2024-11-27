@@ -37,9 +37,28 @@ async function testAuthFlow() {
     const idToken = await userCredential.user.getIdToken(true); // Force refresh token
     console.log('Got ID token');
 
+    // Create session cookie
+    console.log('Creating session cookie...');
+    const sessionResponse = await fetch('http://localhost:3001/api/auth/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ idToken })
+    });
+
+    if (!sessionResponse.ok) {
+      const errorData = await sessionResponse.json();
+      throw new Error(`Session creation failed: ${JSON.stringify(errorData)}`);
+    }
+
+    const sessionData = await sessionResponse.json();
+    console.log('Session cookie created successfully:', sessionData);
+
     // Test the token with a simple API endpoint
     console.log('Testing token with API...');
-    const testResponse = await fetch('http://localhost:3003/api/videos', {
+    const testResponse = await fetch('http://localhost:3001/api/videos', {
       headers: {
         'Authorization': `Bearer ${idToken}`,
         'Accept': 'application/json'

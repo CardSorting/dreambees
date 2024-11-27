@@ -1,103 +1,98 @@
-<template>
-  <div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex">
-            <div class="flex-shrink-0 flex items-center">
-              <h1 class="text-xl font-bold text-indigo-600">DreamBees</h1>
-            </div>
-          </div>
-          <div class="flex items-center space-x-4">
-            <template v-if="authStore.isAuthenticated">
-              <span class="text-gray-700 mr-4">{{ authStore.currentUser?.email }}</span>
-              <NuxtLink
-                to="/dashboard"
-                class="bg-indigo-600 px-4 py-2 text-white rounded-md hover:bg-indigo-700"
-              >
-                Dashboard
-              </NuxtLink>
-            </template>
-            <template v-else>
-              <NuxtLink
-                to="/login"
-                class="bg-indigo-600 px-4 py-2 text-white rounded-md hover:bg-indigo-700"
-              >
-                Login
-              </NuxtLink>
-            </template>
-          </div>
-        </div>
-      </div>
-    </nav>
+<script setup lang="ts">
+import { useAuth } from 'vue-clerk'
 
-    <main class="max-w-7xl mx-auto py-12 sm:px-6 lg:px-8">
-      <!-- Hero Section -->
-      <div class="text-center">
-        <h2 class="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-          <span class="block">Welcome to DreamBees</span>
-          <span class="block text-indigo-600">Your Digital Workspace</span>
-        </h2>
-        <p class="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-          Experience the next generation of collaborative work environment. Join us to transform your ideas into reality.
-        </p>
-        <div class="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-          <div class="rounded-md shadow">
+const { isSignedIn } = useAuth()
+</script>
+
+<template>
+  <div class="bg-white">
+    <!-- Hero section -->
+    <div class="relative isolate overflow-hidden">
+      <div class="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
+        <div class="mx-auto max-w-2xl flex-shrink-0 lg:mx-0 lg:max-w-xl lg:pt-8">
+          <h1 class="mt-10 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+            Create stunning AI videos
+          </h1>
+          <p class="mt-6 text-lg leading-8 text-gray-600">
+            Transform your images into captivating videos with our AI-powered video generation platform.
+          </p>
+          <div class="mt-10 flex items-center gap-x-6">
             <NuxtLink
-              v-if="!authStore.isAuthenticated"
-              to="/login"
-              class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
+              v-if="isSignedIn"
+              to="/video-generator"
+              class="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Create Video
+            </NuxtLink>
+            <NuxtLink
+              v-else
+              to="/signup"
+              class="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               Get Started
             </NuxtLink>
             <NuxtLink
-              v-else
-              to="/dashboard"
-              class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
+              v-if="!isSignedIn"
+              to="/login"
+              class="text-sm font-semibold leading-6 text-gray-900"
             >
-              Go to Dashboard
+              Sign In <span aria-hidden="true">→</span>
             </NuxtLink>
           </div>
         </div>
-      </div>
-
-      <!-- Feature Section -->
-      <div class="mt-24">
-        <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-          <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-medium text-gray-900">Secure Authentication</h3>
-            <p class="mt-2 text-gray-500">
-              Powered by Firebase Authentication for secure and reliable user management.
-            </p>
-          </div>
-          <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-medium text-gray-900">Real-time Database</h3>
-            <p class="mt-2 text-gray-500">
-              Built with Firestore for real-time data synchronization and scalability.
-            </p>
-          </div>
-          <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-medium text-gray-900">Modern UI</h3>
-            <p class="mt-2 text-gray-500">
-              Beautiful and responsive design powered by Tailwind CSS and Nuxt.js.
-            </p>
+        <div class="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-32">
+          <div class="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
+            <img
+              src="https://tailwindui.com/img/component-images/dark-project-app-screenshot.png"
+              alt="App screenshot"
+              width="2432"
+              height="1442"
+              class="w-[76rem] rounded-md bg-white/5 shadow-2xl ring-1 ring-white/10"
+            >
           </div>
         </div>
       </div>
-    </main>
+    </div>
+
+    <!-- Feature section -->
+    <div class="mx-auto mt-32 max-w-7xl px-6 sm:mt-56 lg:px-8">
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 class="text-base font-semibold leading-7 text-indigo-600">Create Faster</h2>
+        <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Everything you need to create amazing videos</p>
+        <p class="mt-6 text-lg leading-8 text-gray-600">
+          Our AI-powered platform makes it easy to transform your images into professional-quality videos in minutes.
+        </p>
+      </div>
+
+      <!-- Feature list -->
+      <div class="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
+        <dl class="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
+          <div class="flex flex-col">
+            <dt class="text-base font-semibold leading-7 text-gray-900">
+              AI-Powered Generation
+            </dt>
+            <dd class="mt-1 flex flex-auto flex-col text-base leading-7 text-gray-600">
+              <p class="flex-auto">Advanced AI algorithms transform your static images into dynamic, engaging videos.</p>
+            </dd>
+          </div>
+          <div class="flex flex-col">
+            <dt class="text-base font-semibold leading-7 text-gray-900">
+              Quick & Easy
+            </dt>
+            <dd class="mt-1 flex flex-auto flex-col text-base leading-7 text-gray-600">
+              <p class="flex-auto">Generate professional videos in minutes with our user-friendly interface.</p>
+            </dd>
+          </div>
+          <div class="flex flex-col">
+            <dt class="text-base font-semibold leading-7 text-gray-900">
+              High Quality Results
+            </dt>
+            <dd class="mt-1 flex flex-auto flex-col text-base leading-7 text-gray-600">
+              <p class="flex-auto">Get stunning, high-quality videos that capture attention and engage your audience.</p>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
-
-const authStore = useAuthStore()
-
-// Initialize auth state if needed
-onMounted(async () => {
-  if (!authStore.initialized) {
-    await authStore.init()
-  }
-})
-</script>

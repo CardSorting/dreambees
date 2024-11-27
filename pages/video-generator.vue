@@ -25,10 +25,9 @@ interface VideoGenerationResponse {
 const authStore = useAuthStore()
 const isLoading = ref(true)
 
-// Ensure auth is initialized before rendering content
-onMounted(async () => {
+// Check authentication status before rendering content
+onMounted(() => {
   try {
-    await authStore.init()
     if (!authStore.isAuthenticated) {
       return navigateTo('/login')
     }

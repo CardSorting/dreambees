@@ -7,78 +7,30 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to check if user owns the document
+    // Helper function to check if user is accessing their own data
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Helper function to validate video URL
-    function isValidVideoUrl(url) {
-      // Allow both S3 signed URLs and CloudFront URLs
-      let s3Pattern = "https://video-generator-subtitles.s3.*.amazonaws.com/.*";
-      let cloudFrontPattern = "https://d2kp8efsbrxae1.cloudfront.net/.*";
-      
-      return url.matches(s3Pattern) || url.matches(cloudFrontPattern);
-    }
-
-    // Helper function to validate video document
-    function isValidVideo() {
-      let requiredFields = ['url', 'createdAt', 'status'];
-      let incomingData = request.resource.data;
-      
-      return incomingData.keys().hasAll(requiredFields) &&
-             incomingData.url is string &&
-             isValidVideoUrl(incomingData.url) &&
-             incomingData.createdAt is string &&
-             incomingData.status in ['processing', 'completed', 'failed'];
-    }
-
-    // Allow users to read and write their own data
+    // Users collection
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
 
-      // Allow users to manage their videos collection
+      // User's videos subcollection
       match /videos/{videoId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidVideo();
-        allow update: if isOwner(userId) && (
-          // Allow updating status and url separately during processing
-          (request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'url', 'progress', 'error']) &&
-           request.resource.data.status in ['processing', 'completed', 'failed'] &&
-           (request.resource.data.url == resource.data.url || 
-            isValidVideoUrl(request.resource.data.url)))
-        );
-        allow delete: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
 
-      // Allow users to manage their video collections
+      // User's collections subcollection
       match /collections/{collectionId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update: if isOwner(userId);
-        allow delete: if isOwner(userId);
-
-        // Allow managing videos within collections
-        match /videos/{videoId} {
-          allow read: if isOwner(userId);
-          allow create: if isOwner(userId) && isValidVideo();
-          allow update: if isOwner(userId) && (
-            // Allow updating status and url separately during processing
-            (request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'url', 'progress', 'error']) &&
-             request.resource.data.status in ['processing', 'completed', 'failed'] &&
-             (request.resource.data.url == resource.data.url || 
-              isValidVideoUrl(request.resource.data.url)))
-          );
-          allow delete: if isOwner(userId);
-        }
+        allow read, write: if isOwner(userId);
       }
     }
-    
-    // Default deny all other access
+
+    // Default deny
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: false;
     }
   }
 }

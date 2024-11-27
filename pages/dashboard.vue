@@ -1,378 +1,122 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { navigateTo } from '#app'
-import { useAuthStore } from '~/stores/auth'
+import { useAuth } from 'vue-clerk'
 import { useVideosStore } from '~/stores/videos'
+import { useUserProfile } from '~/composables/useUserProfile'
+import { onMounted } from 'vue'
 
-const authStore = useAuthStore()
+const { isSignedIn } = useAuth()
 const videosStore = useVideosStore()
+const { profile, isLoading: isProfileLoading, error: profileError } = useUserProfile()
 
-// State
-const isNewCollectionModalOpen = ref(false)
-const isAddToCollectionModalOpen = ref(false)
-const newCollectionName = ref('')
-const selectedVideoId = ref<string | null>(null)
-const activeVideoMenu = ref<string | null>(null)
-
-// Computed
-const currentCollectionName = computed(() => {
-  if (!videosStore.currentCollection) return 'Your Videos'
-  const collection = videosStore.collections.find(c => c.id === videosStore.currentCollection)
-  return collection ? collection.name : 'Your Videos'
-})
-
-// Methods
-const refreshData = async () => {
-  if (!authStore.isAuthenticated) {
-    navigateTo('/login')
-    return
-  }
-
-  await Promise.all([
-    videosStore.fetchVideos(),
-    videosStore.fetchCollections()
-  ])
-}
-
-const handleLogout = async () => {
-  try {
-    await authStore.logout()
-    navigateTo('/')
-  } catch (error) {
-    console.error('Logout failed:', error)
-  }
-}
-
-const createCollection = async () => {
-  if (!newCollectionName.value) return
-  
-  try {
-    await videosStore.createCollection(newCollectionName.value)
-    isNewCollectionModalOpen.value = false
-    newCollectionName.value = ''
-  } catch (error) {
-    console.error('Failed to create collection:', error)
-  }
-}
-
-const toggleVideoMenu = (videoId: string) => {
-  activeVideoMenu.value = activeVideoMenu.value === videoId ? null : videoId
-}
-
-const openAddToCollectionModal = (videoId: string) => {
-  selectedVideoId.value = videoId
-  isAddToCollectionModalOpen.value = true
-  activeVideoMenu.value = null
-}
-
-const closeAddToCollectionModal = () => {
-  isAddToCollectionModalOpen.value = false
-  selectedVideoId.value = null
-}
-
-const addToCollection = async (videoId: string | null, collectionId: string) => {
-  if (!videoId) return
-  try {
-    await videosStore.addVideoToCollection(videoId, collectionId)
-    closeAddToCollectionModal()
-  } catch (error) {
-    console.error('Failed to add video to collection:', error)
-  }
-}
-
-const removeFromCollection = async (videoId: string, collectionId: string) => {
-  try {
-    await videosStore.removeVideoFromCollection(videoId, collectionId)
-    activeVideoMenu.value = null
-  } catch (error) {
-    console.error('Failed to remove video from collection:', error)
-  }
-}
-
-// Initial data fetch
 onMounted(async () => {
-  if (!authStore.initialized) {
-    await authStore.init()
+  if (isSignedIn.value) {
+    await videosStore.fetchVideos()
+    await videosStore.fetchCollections()
   }
-  
-  if (!authStore.isAuthenticated) {
-    navigateTo('/login')
-    return
-  }
-
-  await refreshData()
-})
-
-// Watch for auth state changes
-watch(() => authStore.isAuthenticated, (isAuthenticated) => {
-  if (!isAuthenticated) {
-    navigateTo('/login')
-  }
-})
-
-// Cleanup
-onUnmounted(() => {
-  activeVideoMenu.value = null
 })
 </script>
 
 <template>
-  <div>
-    <ClientOnly>
-      <div class="min-h-screen bg-gray-50">
-        <nav class="bg-white shadow">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-              <div class="flex">
-                <div class="flex-shrink-0 flex items-center">
-                  <NuxtLink to="/" class="text-xl font-bold text-indigo-600">DreamBees</NuxtLink>
-                </div>
-                <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <NuxtLink
-                    to="/dashboard"
-                    class="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Dashboard
-                  </NuxtLink>
-                  <NuxtLink
-                    to="/video-generator"
-                    class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Video Generator
-                  </NuxtLink>
-                </div>
-              </div>
-              <div class="flex items-center">
-                <span class="text-gray-700 mr-4">{{ authStore.currentUser?.email }}</span>
-                <button
-                  @click="handleLogout"
-                  class="bg-indigo-600 px-4 py-2 text-white rounded-md hover:bg-indigo-700"
-                >
-                  Logout
-                </button>
-              </div>
+  <div class="min-h-screen bg-gray-50">
+    <div class="py-10">
+      <header>
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h1 class="text-3xl font-bold leading-tight tracking-tight text-gray-900">Dashboard</h1>
+        </div>
+      </header>
+      <main>
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <!-- User Profile Section -->
+          <div class="px-4 py-6 sm:px-0">
+            <div v-if="isProfileLoading" class="animate-pulse">
+              <div class="h-32 bg-gray-200 rounded-lg"></div>
             </div>
-          </div>
-        </nav>
-
-        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <!-- Collections and Videos Section -->
-          <div class="bg-white shadow rounded-lg">
-            <!-- Header -->
-            <div class="border-b border-gray-200 px-6 py-4">
-              <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-4">
-                  <h2 class="text-2xl font-bold text-gray-900">
-                    {{ currentCollectionName }}
-                  </h2>
-                  <button
-                    v-if="videosStore.currentCollection"
-                    @click="videosStore.setCurrentCollection(null)"
-                    class="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Back to All Videos
-                  </button>
-                </div>
-                <div class="flex space-x-4">
-                  <button
-                    @click="isNewCollectionModalOpen = true"
-                    class="text-indigo-600 hover:text-indigo-700 px-4 py-2 border border-indigo-600 rounded-md"
-                  >
-                    New Collection
-                  </button>
-                  <NuxtLink
-                    to="/video-generator"
-                    class="bg-indigo-600 px-4 py-2 text-white rounded-md hover:bg-indigo-700"
-                  >
-                    Create New Video
-                  </NuxtLink>
-                </div>
-              </div>
+            
+            <div v-else-if="profileError" class="bg-red-50 p-4 rounded-lg">
+              <p class="text-red-700">{{ profileError }}</p>
             </div>
-
-            <!-- Loading State -->
-            <div v-if="videosStore.loading" class="text-center py-8">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600">Loading...</p>
-            </div>
-
-            <!-- Error State -->
-            <div v-else-if="videosStore.error" class="text-center py-8">
-              <p class="text-red-600">{{ videosStore.error }}</p>
-              <button
-                @click="refreshData"
-                class="mt-4 text-indigo-600 hover:text-indigo-500"
-              >
-                Try Again
-              </button>
-            </div>
-
-            <!-- Empty State -->
-            <div 
-              v-else-if="!videosStore.currentCollection && videosStore.videos.length === 0" 
-              class="text-center py-8"
-            >
-              <p class="text-gray-600">You haven't created any videos yet.</p>
-              <NuxtLink
-                to="/video-generator"
-                class="mt-4 inline-block text-indigo-600 hover:text-indigo-500"
-              >
-                Create Your First Video
-              </NuxtLink>
-            </div>
-
-            <!-- Content -->
-            <div v-else class="p-6">
-              <!-- Collections List (when not in a collection) -->
-              <div v-if="!videosStore.currentCollection && videosStore.collections.length > 0" class="mb-8">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Collections</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div
-                    v-for="collection in videosStore.collections"
-                    :key="collection.id"
-                    @click="videosStore.setCurrentCollection(collection.id)"
-                    class="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+            
+            <div v-else-if="profile" class="overflow-hidden bg-white shadow sm:rounded-lg">
+              <div class="px-4 py-5 sm:px-6">
+                <div class="flex items-center">
+                  <img 
+                    v-if="profile.imageUrl"
+                    :src="profile.imageUrl" 
+                    :alt="profile.firstName || 'User'"
+                    class="h-12 w-12 rounded-full"
                   >
-                    <div class="flex justify-between items-center">
-                      <h4 class="font-medium text-gray-900">{{ collection.name }}</h4>
-                      <span class="text-sm text-gray-500">{{ collection.videoCount }} videos</span>
-                    </div>
-                    <p class="text-sm text-gray-500 mt-1">
-                      Created {{ new Date(collection.createdAt).toLocaleDateString() }}
+                  <div class="ml-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">
+                      Welcome, {{ profile.firstName || 'User' }}!
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                      {{ profile.email }}
                     </p>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <!-- Videos Grid -->
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                  {{ videosStore.currentCollection ? 'Collection Videos' : 'All Videos' }}
-                </h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div
-                    v-for="video in videosStore.videosByCollection"
-                    :key="video.id"
-                    class="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+          <!-- Quick Actions -->
+          <div class="mt-8 px-4 sm:px-0">
+            <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+              <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900">Quick Actions</h2>
+                <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <NuxtLink
+                    to="/video-generator"
+                    class="flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700"
                   >
-                    <video
-                      :src="video.url"
-                      class="w-full aspect-[9/16] object-cover"
-                      controls
-                    ></video>
-                    <div class="p-4">
-                      <div class="flex justify-between items-start mb-2">
-                        <p class="text-sm text-gray-500">
-                          Created {{ new Date(video.createdAt).toLocaleDateString() }}
-                        </p>
-                        <div class="relative">
-                          <button
-                            @click="toggleVideoMenu(video.id)"
-                            class="text-gray-500 hover:text-gray-700"
-                          >
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                          </button>
-                          <!-- Video Actions Menu -->
-                          <div
-                            v-if="activeVideoMenu === video.id"
-                            class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
-                          >
-                            <div class="py-1">
-                              <a
-                                :href="video.url"
-                                target="_blank"
-                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                Download Video
-                              </a>
-                              <button
-                                v-if="!video.collectionId"
-                                @click="openAddToCollectionModal(video.id)"
-                                class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                Add to Collection
-                              </button>
-                              <button
-                                v-else
-                                @click="removeFromCollection(video.id, video.collectionId)"
-                                class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                              >
-                                Remove from Collection
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    Create New Video
+                  </NuxtLink>
+                  <button
+                    @click="videosStore.fetchVideos"
+                    class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    Refresh Videos
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </main>
 
-        <!-- New Collection Modal -->
-        <div v-if="isNewCollectionModalOpen" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-          <div class="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Create New Collection</h3>
-            <input
-              v-model="newCollectionName"
-              type="text"
-              placeholder="Collection Name"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md mb-4"
-            >
-            <div class="flex justify-end space-x-4">
-              <button
-                @click="isNewCollectionModalOpen = false"
-                class="text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                @click="createCollection"
-                class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-                :disabled="!newCollectionName"
-              >
-                Create
-              </button>
+          <!-- Videos Grid -->
+          <div class="mt-8 px-4 sm:px-0">
+            <div v-if="videosStore.loading" class="text-center py-12">
+              <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
+              <p class="mt-4 text-gray-600">Loading your videos...</p>
             </div>
-          </div>
-        </div>
-
-        <!-- Add to Collection Modal -->
-        <div v-if="isAddToCollectionModalOpen" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-          <div class="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Add to Collection</h3>
-            <div class="space-y-2 mb-4">
-              <div
-                v-for="collection in videosStore.collections"
-                :key="collection.id"
-                @click="addToCollection(selectedVideoId, collection.id)"
-                class="p-3 border rounded-md cursor-pointer hover:bg-gray-50"
+            
+            <div v-else-if="videosStore.error" class="text-center py-12">
+              <p class="text-red-600">{{ videosStore.error }}</p>
+            </div>
+            
+            <div v-else-if="videosStore.videos.length === 0" class="text-center py-12">
+              <p class="text-gray-600">No videos yet. Create your first video!</p>
+            </div>
+            
+            <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div 
+                v-for="video in videosStore.videos" 
+                :key="video.id"
+                class="overflow-hidden rounded-lg bg-white shadow"
               >
-                {{ collection.name }}
+                <video 
+                  :src="video.url"
+                  controls
+                  class="w-full h-48 object-cover"
+                ></video>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500">
+                    Created {{ new Date(video.createdAt).toLocaleDateString() }}
+                  </p>
+                </div>
               </div>
             </div>
-            <div class="flex justify-end">
-              <button
-                @click="closeAddToCollectionModal"
-                class="text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
-      </div>
-    </ClientOnly>
+      </main>
+    </div>
   </div>
 </template>
-
-<style>
-.router-link-active {
-  border-color: rgb(99 102 241);
-  color: rgb(17 24 39);
-}
-</style>

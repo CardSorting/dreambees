@@ -1,15 +1,33 @@
-import type { Auth } from 'firebase/auth'
-import type { Firestore } from 'firebase/firestore'
+import { initializeApp } from 'firebase/app'
+import { getFirestore } from 'firebase/firestore'
+import { useRuntimeConfig } from '#app'
 
-export const useFirebase = () => {
-  const { $firebase } = useNuxtApp()
-  
-  if (!$firebase) {
-    throw new Error('Firebase plugin not initialized')
+export function useFirebase() {
+  const config = useRuntimeConfig()
+
+  // Firebase configuration
+  const firebaseConfig = {
+    projectId: config.public.firebaseProjectId,
+    storageBucket: config.public.firebaseStorageBucket
   }
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig)
+  const firestore = getFirestore(app)
 
   return {
-    auth: $firebase.auth as Auth,
-    firestore: $firebase.firestore as Firestore
+    app,
+    firestore
   }
 }
+
+// Plugin to make Firebase available throughout the app
+export default defineNuxtPlugin((nuxtApp) => {
+  const { app, firestore } = useFirebase()
+
+  // Provide Firebase instances to the app
+  nuxtApp.provide('firebase', {
+    app,
+    firestore
+  })
+})
