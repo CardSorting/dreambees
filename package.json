@@ -18,7 +18,22 @@
     "worker:test": "cross-env NODE_NO_WARNINGS=1 tsx scripts/start-worker.ts",
     "delay": "node -e \"setTimeout(() => {}, 2000)\"",
     "test:queue:all": "concurrently --kill-others \"npm run worker:test\" \"npm run delay && npm run test:queue\"",
-    "shutdown": "node scripts/shutdown.js"
+    "shutdown": "node scripts/shutdown.js",
+    "test:rules": "jest scripts/test-firestore-rules.js",
+    "emulators": "node scripts/start-firebase-emulators.js",
+    "test:rules:with-emulator": "concurrently --kill-others \"npm run emulators\" \"sleep 5 && npm run test:rules\"",
+    "validate:rules": "node scripts/validate-firestore-rules.js",
+    "validate:indexes": "node scripts/validate-firestore-indexes.js",
+    "predeploy:rules": "npm run validate:rules && npm run test:rules",
+    "predeploy:indexes": "npm run validate:indexes",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:indexes": "firebase deploy --only firestore:indexes",
+    "deploy:firestore": "npm run deploy:rules && npm run deploy:indexes",
+    "test:rules:watch": "jest scripts/test-firestore-rules.js --watch",
+    "test:rules:coverage": "jest scripts/test-firestore-rules.js --coverage",
+    "test:all": "npm run test:rules && npm run test:auth && npm run test:queue:all",
+    "firebase:get-indexes": "firebase firestore:indexes > firestore.indexes.current.json",
+    "firebase:diff-indexes": "node scripts/diff-firestore-indexes.js"
   },
   "dependencies": {
     "@aws-sdk/client-cloudfront": "^3.699.0",
@@ -47,6 +62,7 @@
   },
   "devDependencies": {
     "@clerk/types": "^4.35.0",
+    "@firebase/rules-unit-testing": "^3.0.1",
     "@types/amqplib": "^0.10.5",
     "@types/body-parser": "^1.19.5",
     "@types/caseless": "^0.12.5",
@@ -56,6 +72,7 @@
     "@types/express-serve-static-core": "^5.0.2",
     "@types/http-errors": "^2.0.4",
     "@types/http-proxy": "^1.17.15",
+    "@types/jest": "^29.5.4",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.0",
     "@types/qs": "^6.9.17",
@@ -65,8 +82,10 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
+    "jest": "^29.6.4",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
+    "ts-jest": "^29.1.1",
     "tsx": "^4.19.2"
   }
 }
