@@ -1,12 +1,15 @@
 import { defineEventHandler, createError, getHeader } from 'h3'
 import { getAuth } from 'firebase-admin/auth'
 import { createClerkClient } from '@clerk/backend'
-
-const clerk = createClerkClient({ 
-  secretKey: process.env.CLERK_SECRET_KEY 
-})
+import { useRuntimeConfig } from '#imports'
 
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+  
+  const clerk = createClerkClient({ 
+    secretKey: config.clerk.secretKey 
+  })
+
   try {
     // Get the session token from Authorization header
     const authHeader = getHeader(event, 'Authorization')

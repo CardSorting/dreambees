@@ -19,12 +19,18 @@ export default defineNuxtConfig({
     redisToken: process.env.REDIS_TOKEN,
     rabbitmqUrl: process.env.RABBITMQ_URL,
     openaiApiKey: process.env.OPENAI_API_KEY,
+    clerk: {
+      secretKey: process.env.CLERK_SECRET_KEY
+    },
     public: {
       firebaseProjectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID,
       firebaseStorageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       // Public config for CloudFront
       cloudFrontDomain: 'd2kp8efsbrxae1.cloudfront.net',
-      clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY
+      clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+      clerk: {
+        publishableKey: process.env.CLERK_PUBLISHABLE_KEY
+      }
     }
   },
   postcss: {

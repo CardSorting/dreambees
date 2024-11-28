@@ -3,12 +3,15 @@ import { getAuth } from 'firebase-admin/auth'
 import type { AuthContext } from '../types/auth'
 import { isValidAuthContext } from '../types/auth'
 import { createClerkClient } from '@clerk/backend'
-
-const clerk = createClerkClient({ 
-  secretKey: process.env.CLERK_SECRET_KEY 
-})
+import { useRuntimeConfig } from '#imports'
 
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+  
+  const clerk = createClerkClient({ 
+    secretKey: config.clerk.secretKey 
+  })
+
   // Skip auth for public routes
   if (event.node.req.url?.startsWith('/api/auth/') || 
       event.node.req.url?.startsWith('/_nuxt/') ||
