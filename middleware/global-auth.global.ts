@@ -1,13 +1,13 @@
 import { defineNuxtRouteMiddleware, navigateTo } from '#app'
-import { useAuthStore } from '~/stores/auth'
 import { useAuth } from 'vue-clerk'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-export default defineNuxtRouteMiddleware(async (to: any) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   // Skip middleware on server-side
   if (process.server) return
   
-  const authStore = useAuthStore()
   const { isLoaded, isSignedIn } = useAuth()
+  const { signInToFirebase, isFirebaseAuthenticated } = useFirebaseAuth()
   
   // Protected routes that require authentication
   const protectedRoutes = ['/dashboard', '/video-generator']
@@ -30,9 +30,9 @@ export default defineNuxtRouteMiddleware(async (to: any) => {
       return navigateTo(to.query.redirect?.toString() || '/')
     }
 
-    // If authenticated and accessing a protected route, ensure we have a Firebase token
-    if (protectedRoutes.includes(to.path) && isSignedIn.value && !authStore.firebaseToken) {
-      await authStore.refreshFirebaseToken()
+    // If authenticated and accessing a protected route, ensure Firebase auth is set up
+    if (protectedRoutes.includes(to.path) && isSignedIn.value && !isFirebaseAuthenticated.value) {
+      await signInToFirebase()
     }
 
   } catch (error) {

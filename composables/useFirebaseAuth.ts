@@ -1,37 +1,28 @@
 import { signInWithCustomToken, signOut } from 'firebase/auth'
-import { useAuth as useClerkAuth } from 'vue-clerk'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useNuxtApp } from '#app'
+import { useAuthFetch } from './useAuthFetch'
 
 export function useFirebaseAuth() {
   const nuxtApp = useNuxtApp()
-  const { getToken } = useClerkAuth()
   const isFirebaseAuthenticated = ref(false)
   const error = ref<string | null>(null)
 
   const signInToFirebase = async () => {
     try {
       error.value = null
-      const token = await getToken.value()
-      
-      if (!token) {
-        throw new Error('No auth token available')
-      }
 
       // Get Firebase custom token from server
-      const response = await $fetch<{ firebaseToken: string }>('/api/auth/firebase-token', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const { data: response } = await useAuthFetch<{ firebaseToken: string }>('/api/auth/firebase-token', {
+        method: 'POST'
       })
 
-      if (!response.firebaseToken) {
+      if (!response.value?.firebaseToken) {
         throw new Error('Failed to get Firebase token')
       }
 
       // Sign in to Firebase with custom token
-      await signInWithCustomToken(nuxtApp.$firebase.auth, response.firebaseToken)
+      await signInWithCustomToken(nuxtApp.$firebase.auth, response.value.firebaseToken)
       isFirebaseAuthenticated.value = true
 
     } catch (e: any) {
