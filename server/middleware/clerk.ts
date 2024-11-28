@@ -1,5 +1,5 @@
 import { defineEventHandler, createError, getHeader } from 'h3'
-import { getAuth as getFirebaseAuth } from 'firebase-admin/auth'
+import { getAuth } from 'firebase-admin/auth'
 import type { AuthContext } from '../types/auth'
 import { isValidAuthContext } from '../types/auth'
 import { createClerkClient } from '@clerk/backend'
@@ -10,21 +10,22 @@ const clerk = createClerkClient({
 
 export default defineEventHandler(async (event) => {
   // Skip auth for public routes
-  if (event.node.req.url?.startsWith('/api/auth') || 
-      event.node.req.url?.startsWith('/_nuxt') ||
+  if (event.node.req.url?.startsWith('/api/auth/') || 
+      event.node.req.url?.startsWith('/_nuxt/') ||
       event.node.req.url === '/') {
     return
   }
 
   try {
     // Get the session token from Authorization header
-    const sessionToken = getHeader(event, 'Authorization')?.replace('Bearer ', '')
-    
+    const authHeader = getHeader(event, 'Authorization')
+    const sessionToken = authHeader?.startsWith('Bearer ') 
+      ? authHeader.substring(7) 
+      : null
+
     if (!sessionToken) {
-      throw createError({
-        statusCode: 401,
-        message: 'No authorization header found'
-      })
+      // Instead of throwing error, just return - let the endpoint handle auth if needed
+      return
     }
 
     try {
@@ -36,7 +37,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // Create a custom token for Firebase using the Clerk user ID
-      const customToken = await getFirebaseAuth().createCustomToken(session.userId)
+      const customToken = await getAuth().createCustomToken(session.userId)
 
       // Create auth context
       const authContext: AuthContext = {

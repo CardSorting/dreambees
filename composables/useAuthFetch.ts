@@ -14,7 +14,7 @@ export function useAuthFetch<T = any>(url: string, opts: UseFetchOptions<T> = {}
     async onRequest(ctx: FetchContext) {
       if (!isPublicEndpoint) {
         try {
-          const token = await getToken.value
+          const token = await getToken.value()
           if (token) {
             ctx.options.headers = new Headers(ctx.options.headers || {})
             ctx.options.headers.set('Authorization', `Bearer ${token}`)
