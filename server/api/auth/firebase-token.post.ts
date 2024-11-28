@@ -1,4 +1,4 @@
-import { defineEventHandler, createError } from 'h3'
+import { defineEventHandler, createError, parseCookies, getHeader } from 'h3'
 import { getAuth } from 'firebase-admin/auth'
 import { createClerkClient } from '@clerk/backend'
 
@@ -8,13 +8,17 @@ const clerk = createClerkClient({
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get the session token from the Authorization header
-    const sessionToken = event.node.req.headers.authorization?.replace('Bearer ', '')
+    // Get the session token from either the __session cookie or Clerk headers
+    const cookies = parseCookies(event)
+    const sessionToken = 
+      cookies.__session || 
+      getHeader(event, 'clerk-session-id') ||
+      getHeader(event, 'Authorization')?.replace('Bearer ', '')
     
     if (!sessionToken) {
       throw createError({
         statusCode: 401,
-        message: 'No session token provided'
+        message: 'No session found'
       })
     }
 

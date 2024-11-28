@@ -1,66 +1,60 @@
-import { defineEventHandler, readBody, createError } from 'h3';
-import { auth } from '../../utils/firebase-admin';
+import { defineEventHandler, createError } from 'h3';
+import { getAuth } from 'firebase-admin/auth';
+import { createClerkClient } from '@clerk/backend';
+
+const clerk = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+});
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event);
+    // Get the session from the auth context that was set by our clerk middleware
+    const { auth } = event.context;
     
-    if (!body || !body.idToken) {
-      console.error('Missing ID token in request body:', body);
+    if (!auth?.uid) {
       throw createError({
-        statusCode: 400,
-        message: 'ID token is required'
+        statusCode: 401,
+        message: 'No authenticated user found'
       });
     }
 
-    const { idToken } = body;
-
     try {
-      // First verify the ID token
-      console.log('Verifying ID token...');
-      const decodedToken = await auth.verifyIdToken(idToken);
-      console.log('Token verified successfully:', { uid: decodedToken.uid });
+      // Verify the user exists in Clerk
+      const user = await clerk.users.getUser(auth.uid);
+      
+      if (!user) {
+        throw new Error('User not found in Clerk');
+      }
 
-      // Then create the session cookie (5 days)
-      console.log('Creating session cookie...');
-      const expiresIn = 60 * 60 * 24 * 5 * 1000;
-      const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
-      console.log('Session cookie created successfully');
+      // Create a custom token for Firebase
+      const customToken = await getAuth().createCustomToken(auth.uid);
 
-      // Set cookie
-      event.node.res.setHeader('Set-Cookie', [
-        `session=${sessionCookie}; Max-Age=${expiresIn}; HttpOnly; Path=/; SameSite=Lax${
-          process.env.NODE_ENV === 'production' ? '; Secure' : ''
-        }`
-      ]);
-
-      return { success: true };
+      return { 
+        success: true,
+        firebaseToken: customToken
+      };
+      
     } catch (authError: any) {
       console.error('Authentication error:', {
         message: authError.message,
         code: authError.code,
-        stack: authError.stack,
-        name: authError.name,
-        cause: authError.cause
+        stack: authError.stack
       });
       throw createError({
         statusCode: 401,
-        message: authError.message || 'Invalid ID token'
+        message: authError.message || 'Authentication failed'
       });
     }
   } catch (error: any) {
-    console.error('Session creation error:', {
+    console.error('Session error:', {
       error: error.message,
       code: error.code,
-      stack: error.stack,
-      statusCode: error.statusCode,
-      name: error.name,
-      cause: error.cause
+      stack: error.stack
     });
 
     throw createError({
       statusCode: error.statusCode || 500,
-      message: error.message || 'Failed to create session'
+      message: error.message || 'Failed to process session'
     });
   }
 });

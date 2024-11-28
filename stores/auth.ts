@@ -10,7 +10,8 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     loading: true,
     error: null as string | null,
-    firestoreUserId: null as string | null
+    firestoreUserId: null as string | null,
+    firebaseToken: null as string | null
   }),
 
   getters: {
@@ -44,7 +45,23 @@ export const useAuthStore = defineStore('auth', {
       try {
         await signOut.value();
         this.firestoreUserId = null;
+        this.firebaseToken = null;
         this.error = null;
+      } catch (error: any) {
+        this.error = error.message;
+        throw error;
+      }
+    },
+
+    async refreshFirebaseToken() {
+      try {
+        const response = await fetch('/api/auth/session');
+        if (!response.ok) {
+          throw new Error('Failed to refresh Firebase token');
+        }
+        const data = await response.json();
+        this.firebaseToken = data.firebaseToken;
+        return this.firebaseToken;
       } catch (error: any) {
         this.error = error.message;
         throw error;

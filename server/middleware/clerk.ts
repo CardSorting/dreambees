@@ -1,8 +1,9 @@
 import { defineEventHandler, createError, getHeader } from 'h3'
+import { getAuth as getFirebaseAuth } from 'firebase-admin/auth'
+import type { AuthContext } from '../types/auth'
+import { isValidAuthContext } from '../types/auth'
 import { createClerkClient } from '@clerk/backend'
-import { AuthContext } from '../types/auth'
 
-// Create a new Clerk client instance
 const clerk = createClerkClient({ 
   secretKey: process.env.CLERK_SECRET_KEY 
 })
@@ -16,27 +17,41 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Get the session token from Authorization header
     const sessionToken = getHeader(event, 'Authorization')?.replace('Bearer ', '')
     
     if (!sessionToken) {
       throw createError({
         statusCode: 401,
-        message: 'No session token provided'
+        message: 'No authorization header found'
       })
     }
 
     try {
+      // Get the session from Clerk
       const session = await clerk.sessions.getSession(sessionToken)
       
-      if (!session || !session.userId) {
+      if (!session?.userId) {
         throw new Error('Invalid session')
       }
 
-      // Add user to event context for use in API routes
-      event.context.auth = {
+      // Create a custom token for Firebase using the Clerk user ID
+      const customToken = await getFirebaseAuth().createCustomToken(session.userId)
+
+      // Create auth context
+      const authContext: AuthContext = {
         uid: session.userId,
-        firebaseToken: sessionToken // Use the session token as the firebase token
+        firebaseToken: customToken
       }
+
+      // Validate auth context
+      if (!isValidAuthContext(authContext)) {
+        throw new Error('Invalid auth context')
+      }
+
+      // Add the auth context to the event
+      event.context.auth = authContext
+
     } catch (error) {
       console.error('Session verification error:', error)
       throw createError({
