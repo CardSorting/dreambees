@@ -1,11 +1,16 @@
 import { clerkPlugin } from 'vue-clerk/plugin'
-import { defineNuxtPlugin } from '#app'
+import { defineNuxtPlugin, useRuntimeConfig } from '#app'
 
 export default defineNuxtPlugin((nuxtApp) => {
-  const runtimeConfig = useRuntimeConfig()
+  const config = useRuntimeConfig()
   
+  if (!config.public.clerkPublishableKey) {
+    console.error('Missing Clerk publishable key')
+    return
+  }
+
   nuxtApp.vueApp.use(clerkPlugin, {
-    publishableKey: runtimeConfig.public.clerk?.publishableKey,
+    publishableKey: config.public.clerkPublishableKey,
     options: {
       appearance: {
         layout: {
